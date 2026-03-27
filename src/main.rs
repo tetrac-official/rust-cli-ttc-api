@@ -90,6 +90,16 @@ async fn main() -> Result<()> {
     // Auto-load .env from current directory (silently ignore if not found)
     let _ = dotenvy::dotenv();
 
+    // Pre-load config so config.toml's `exchange` field acts as the default
+    // for --exchange. Only sets TTC_EXCHANGE if not already in env.
+    if std::env::var("TTC_EXCHANGE").is_err() {
+        if let Ok(pre_config) = AppConfig::load_from_file(&None) {
+            if let Some(exchange) = pre_config.exchange {
+                std::env::set_var("TTC_EXCHANGE", exchange);
+            }
+        }
+    }
+
     let cli = Cli::parse();
 
     // Initialize logging

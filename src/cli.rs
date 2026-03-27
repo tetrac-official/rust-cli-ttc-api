@@ -84,7 +84,7 @@ pub enum OrderSubcommands {
 #[derive(Debug, Args)]
 pub struct OrderLimitArgs {
     /// Exchange name (e.g., phemex, bybit, binance)
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Trading symbol (e.g., BTCUSDT, ETHUSDT)
@@ -139,7 +139,7 @@ pub struct OrderLimitArgs {
 #[derive(Debug, Args)]
 pub struct OrderMarketArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Trading symbol
@@ -186,7 +186,7 @@ pub struct OrderMarketArgs {
 #[derive(Debug, Args)]
 pub struct OrderStopArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Trading symbol
@@ -233,7 +233,7 @@ pub struct OrderStopArgs {
 #[derive(Debug, Args)]
 pub struct OrderTakeProfitArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Trading symbol
@@ -276,7 +276,7 @@ pub struct OrderTakeProfitArgs {
 #[derive(Debug, Args)]
 pub struct OrderCancelArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Trading symbol
@@ -307,7 +307,7 @@ pub struct OrderCancelArgs {
 #[derive(Debug, Args)]
 pub struct OrderCancelAllArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Symbol (optional - cancels all if not specified)
@@ -330,7 +330,7 @@ pub struct OrderCancelAllArgs {
 #[derive(Debug, Args)]
 pub struct OrderOpenArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Symbol (optional - shows all if not specified)
@@ -377,7 +377,7 @@ pub enum PositionSubcommands {
 #[derive(Debug, Args)]
 pub struct PositionGetArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Symbol filter (optional)
@@ -400,7 +400,7 @@ pub struct PositionGetArgs {
 #[derive(Debug, Args)]
 pub struct PositionCloseArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Trading symbol
@@ -431,7 +431,7 @@ pub struct PositionCloseArgs {
 #[derive(Debug, Args)]
 pub struct PositionCloseAllArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Exchange API key
@@ -477,7 +477,7 @@ pub enum AccountSubcommands {
 #[derive(Debug, Args)]
 pub struct AccountBalanceArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Exchange API key
@@ -496,7 +496,7 @@ pub struct AccountBalanceArgs {
 #[derive(Debug, Args)]
 pub struct AccountLeverageArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Trading symbol
@@ -523,7 +523,7 @@ pub struct AccountLeverageArgs {
 #[derive(Debug, Args)]
 pub struct AccountMarginArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Margin mode: isolated or cross
@@ -550,7 +550,7 @@ pub struct AccountMarginArgs {
 #[derive(Debug, Args)]
 pub struct AccountHedgeArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Enable hedge mode
@@ -599,7 +599,7 @@ pub enum RiskSubcommands {
 #[derive(Debug, Args)]
 pub struct RiskStopLossArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Trading symbol
@@ -630,7 +630,7 @@ pub struct RiskStopLossArgs {
 #[derive(Debug, Args)]
 pub struct RiskTakeProfitArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Trading symbol
@@ -661,7 +661,7 @@ pub struct RiskTakeProfitArgs {
 #[derive(Debug, Args)]
 pub struct RiskTrailingStopArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Trading symbol
@@ -777,7 +777,7 @@ pub enum OrdersSubcommands {
 #[derive(Debug, Args)]
 pub struct OrdersGetArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Symbol (optional - shows all if not specified)
@@ -800,7 +800,7 @@ pub struct OrdersGetArgs {
 #[derive(Debug, Args)]
 pub struct OrdersCancelAllArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Symbol (optional - cancels all if not specified)
@@ -823,7 +823,7 @@ pub struct OrdersCancelAllArgs {
 #[derive(Debug, Args)]
 pub struct OrdersCancelArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Trading symbol
@@ -875,7 +875,7 @@ pub enum MarketSubcommands {
 #[derive(Debug, Args)]
 pub struct MarketTickersArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Symbol (optional, returns all if not specified)
@@ -898,7 +898,7 @@ pub struct MarketTickersArgs {
 #[derive(Debug, Args)]
 pub struct MarketBestBidAskArgs {
     /// Exchange name
-    #[arg(short, long)]
+    #[arg(short, long, env = "TTC_EXCHANGE")]
     pub exchange: String,
 
     /// Trading symbol

@@ -99,9 +99,28 @@ async fn show_config(settings: &AppConfig, format: OutputFormat) -> Result<()> {
 
 async fn set_default(args: ConfigSetDefaultArgs, format: OutputFormat) -> Result<()> {
     let printer = Printer::new(format);
+    let config_path = AppConfig::discover_config_path();
 
-    printer.success(&format!("Default exchange would be set to: {}", args.exchange));
-    printer.info("Note: Configuration changes require manual editing of the config file or environment variables.");
+    let mut config = AppConfig::load_from_file(&Some(config_path.clone()))
+        .unwrap_or_default();
+
+    config.exchange = Some(args.exchange.clone());
+
+    let contents = toml::to_string_pretty(&config)
+        .map_err(|e| crate::error::TtcError::Config(format!("Failed to serialize config: {}", e)))?;
+
+    if let Some(parent) = config_path.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| crate::error::TtcError::Config(format!("Failed to create config dir: {}", e)))?;
+        }
+    }
+
+    std::fs::write(&config_path, &contents)
+        .map_err(|e| crate::error::TtcError::Config(format!("Failed to write config: {}", e)))?;
+
+    printer.success(&format!("Default exchange set to: {}", args.exchange));
+    printer.info(&format!("Saved to: {}", config_path.display()));
 
     Ok(())
 }

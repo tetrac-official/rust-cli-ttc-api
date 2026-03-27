@@ -129,7 +129,7 @@ impl AppConfig {
     /// Checks in order:
     /// 1. ./config.toml (current directory)
     /// 2. User-level config directory
-    fn discover_config_path() -> PathBuf {
+    pub fn discover_config_path() -> PathBuf {
         // First check for local config in current directory
         let local_config = PathBuf::from("./config.toml");
         if local_config.exists() {
