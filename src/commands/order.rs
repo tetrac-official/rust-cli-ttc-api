@@ -258,13 +258,9 @@ async fn cancel_all(args: OrderCancelAllArgs, settings: &AppConfig, format: Outp
 
     info!("Canceling all orders on {}", args.exchange);
 
-    let results = client.cancel_all_orders(&args.exchange, args.symbol.as_deref(), credentials).await?;
+    let result = client.cancel_all_orders(&args.exchange, args.symbol.as_deref(), credentials).await?;
 
-    printer.success(&format!("Canceled {} order(s)", results.len()));
-    
-    for result in &results {
-        println!("  - {}: {}", result.order_id, result.status);
-    }
+    printer.success(&result.message);
 
     Ok(())
 }

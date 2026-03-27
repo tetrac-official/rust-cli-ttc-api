@@ -230,7 +230,7 @@ impl Client {
     }
 
     #[instrument(skip(self, credentials))]
-    pub async fn cancel_all_orders(&self, exchange: &str, symbol: Option<&str>, credentials: ExchangeCredentials) -> Result<Vec<Order>> {
+    pub async fn cancel_all_orders(&self, exchange: &str, symbol: Option<&str>, credentials: ExchangeCredentials) -> Result<CancelAllResult> {
         let request = ExchangeRequest {
             exchange_name: exchange.to_string(),
             method: "cancelAllOrders".to_string(),

@@ -382,3 +382,8 @@ pub struct MarginModeResult {
 pub struct HedgeModeResult {
     pub hedge_mode: bool,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CancelAllResult {
+    pub message: String,
+}
