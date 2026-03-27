@@ -1,4 +1,26 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+/// Deserialize a field that may be either a JSON number or a quoted string into f64.
+fn deserialize_f64_or_string<'de, D>(deserializer: D) -> Result<f64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::{self, Visitor};
+    struct F64OrString;
+    impl<'de> Visitor<'de> for F64OrString {
+        type Value = f64;
+        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "a number or a string containing a number")
+        }
+        fn visit_f64<E: de::Error>(self, v: f64) -> Result<f64, E> { Ok(v) }
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<f64, E> { Ok(v as f64) }
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<f64, E> { Ok(v as f64) }
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<f64, E> {
+            v.parse().map_err(de::Error::custom)
+        }
+    }
+    deserializer.deserialize_any(F64OrString)
+}
 
 // ============================================================================
 // Enum Types
@@ -298,8 +320,11 @@ pub struct Position {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Balance {
     pub asset: String,
+    #[serde(deserialize_with = "deserialize_f64_or_string")]
     pub balance: f64,
+    #[serde(deserialize_with = "deserialize_f64_or_string")]
     pub available: f64,
+    #[serde(deserialize_with = "deserialize_f64_or_string")]
     pub locked: f64,
 }
 
