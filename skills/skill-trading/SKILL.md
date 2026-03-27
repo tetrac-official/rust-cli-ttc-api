@@ -105,7 +105,88 @@ If `mark_price` is approaching `liq`, warn the user immediately.
 
 ---
 
+## MARKET DATA COMMANDS
+
+These are cross-exchange, public endpoints — no API key required.
+
+### Hybrid Tickers (aggregated across all exchanges)
+```
+skill-trading market hybrid-tickers [OPTIONS]
+```
+Options:
+- `--market-type spot|futures` — filter by market type (default: both)
+- `--source <exchange>` — filter by exchange name (e.g. `binance`, `orderly`)
+- `--symbol <SYM>` — filter by symbol (e.g. `NEARUSDT`)
+- `--min-volume <USD>` — minimum 24h volume in USD
+- `--min-price <price>` — minimum price filter
+- `--max-price <price>` — maximum price filter
+- `--up <pct>` — show only markets up ≥ N% today (e.g. `--up 5`)
+- `--down <pct>` — show only markets down ≥ N% today
+
+> **Note:** Do NOT pass `-e` / `--exchange` here — use `--source` to filter by exchange.
+> The global `TTC_EXCHANGE` env var does not affect this command.
+
+### Funding Rates
+```
+skill-trading market funding-rates [--symbol <SYM>]
+```
+Shows current funding rates across all exchanges for a symbol (or all symbols).
+
+### Open Interest
+```
+skill-trading market open-interest [--symbol <SYM>]
+```
+Shows open interest in USD across all exchanges.
+
+### Volume Snapshot
+```
+skill-trading market volume-snapshot
+```
+Shows 24h volume, open interest, and TVL per exchange (CEX + DEX).
+
+### Scanner — Technical Analysis
+```
+skill-trading market scanner --symbol <SYM> [--timeframe 1h] [--bars 1000] [--swing-strength 10]
+```
+Runs fan analysis on a symbol. Returns:
+- **Signal** — direction (LONG/SHORT), confidence, entry price, stop-loss, TP1/TP2/TP3, R/R ratio
+- **Scoring** — long score, short score, preferred direction, active fan line per side
+- **Fan lines** — all angle levels with current price, % distance, and time-to-reach for nearby lines
+
+Parameters:
+- `--timeframe` — kline interval: `1m`, `5m`, `15m`, `1h`, `4h`, `1d` (default: `1h`)
+- `--bars` — number of bars to analyze, max 1000 (default: 1000)
+- `--swing-strength` — lookback for swing detection (default: 10)
+
+> **Usage tip:** Run this before opening a position to get an objective entry/exit framework.
+> The signal includes a ready-to-use stop-loss and three take-profit targets.
+
+### Tickers (exchange-specific)
+```
+skill-trading market tickers --symbol <SYM>
+```
+Shows ticker data for a specific exchange (requires `-e <exchange>`).
+
+### Best Bid/Ask
+```
+skill-trading market best-bid-ask --symbol <SYM>
+```
+Shows the best bid and ask on a specific exchange (requires `-e <exchange>`).
+
+---
+
 ## COMMON WORKFLOWS
+
+### Scan for movers
+```
+skill-trading market hybrid-tickers --up 5 --min-volume 1000000
+skill-trading market hybrid-tickers --down 5 --market-type futures
+```
+
+### Check funding rates for a symbol
+```
+skill-trading market funding-rates --symbol BTCUSDT
+```
 
 ### Open a new position
 1. `account balance` → verify available > 0

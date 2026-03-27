@@ -886,6 +886,10 @@ pub enum MarketSubcommands {
     /// Get volume snapshot for DEX and CEX exchanges
     #[command(alias = "vol", alias = "vs")]
     VolumeSnapshot(MarketVolumeSnapshotArgs),
+
+    /// Fan analysis — entry, stop-loss, and take-profit levels
+    #[command(alias = "scan")]
+    Scanner(MarketScannerArgs),
 }
 
 #[derive(Debug, Args)]
@@ -985,6 +989,25 @@ pub struct MarketOpenInterestArgs {
 
 #[derive(Debug, Args)]
 pub struct MarketVolumeSnapshotArgs {}
+
+#[derive(Debug, Args)]
+pub struct MarketScannerArgs {
+    /// Market symbol to scan (e.g. BTCUSDT)
+    #[arg(short, long)]
+    pub symbol: String,
+
+    /// Kline timeframe (e.g. 1m, 5m, 1h, 4h, 1d)
+    #[arg(short, long, default_value = "1h")]
+    pub timeframe: String,
+
+    /// Number of bars to analyze (max 1000)
+    #[arg(short, long)]
+    pub bars: Option<u32>,
+
+    /// Lookback period for swing detection
+    #[arg(long)]
+    pub swing_strength: Option<u32>,
+}
 
 // ============================================================================
 // Value Enums

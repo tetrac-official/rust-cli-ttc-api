@@ -17,6 +17,7 @@ pub async fn execute(cmd: MarketCommands, settings: &AppConfig, format: OutputFo
         MarketSubcommands::FundingRates(args) => get_funding_rates(args, settings, format).await,
         MarketSubcommands::OpenInterest(args) => get_open_interest(args, settings, format).await,
         MarketSubcommands::VolumeSnapshot(args) => get_volume_snapshot(args, settings, format).await,
+        MarketSubcommands::Scanner(args) => get_scanner(args, settings, format).await,
     }
 }
 
@@ -181,6 +182,36 @@ async fn get_open_interest(args: MarketOpenInterestArgs, settings: &AppConfig, f
         );
     }
 
+    Ok(())
+}
+
+async fn get_scanner(args: MarketScannerArgs, settings: &AppConfig, _format: OutputFormat) -> Result<()> {
+    let client = Client::new(settings)?;
+
+    info!("Scanning {} on {}", args.symbol, args.timeframe);
+
+    let result = client.get_scanner(
+        &args.symbol,
+        Some(&args.timeframe),
+        args.bars,
+        args.swing_strength,
+    ).await?;
+
+    let sig = &result.signal;
+
+    println!();
+    println!("  {} / {} — {} {}  (strength {}/100)", result.symbol, args.timeframe, sig.direction, sig.confidence, sig.strength as u32);
+    println!("  Entry:     ${:.4}", sig.entry);
+    println!("  Stop Loss: ${:.4}  ({:.2}% risk)",
+        sig.stop_loss,
+        ((sig.stop_loss - sig.entry) / sig.entry * 100.0).abs()
+    );
+    println!("  TP1:       ${:.4}  ({:+.2}%)", sig.take_profit1, (sig.take_profit1 - sig.entry) / sig.entry * 100.0);
+    println!("  TP2:       ${:.4}  ({:+.2}%)", sig.take_profit2, (sig.take_profit2 - sig.entry) / sig.entry * 100.0);
+    println!("  TP3:       ${:.4}  ({:+.2}%)", sig.take_profit3, (sig.take_profit3 - sig.entry) / sig.entry * 100.0);
+    println!("  R/R:       {:.2}x", sig.risk_reward_ratio);
+    println!("  Note:      {}", sig.reasoning);
+    println!();
     Ok(())
 }
 

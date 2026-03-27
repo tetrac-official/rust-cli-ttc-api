@@ -511,3 +511,28 @@ pub struct VolumeSnapshotMarket {
     #[serde(default)]
     pub funding_rate: f64,
 }
+
+// ============================================================================
+// TTC Scanner
+// ============================================================================
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ScannerResult {
+    pub symbol: String,
+    pub signal: ScanSignal,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScanSignal {
+    pub direction: String,
+    pub strength: f64,
+    pub confidence: String,
+    pub entry: f64,
+    pub stop_loss: f64,
+    pub take_profit1: f64,
+    pub take_profit2: f64,
+    pub take_profit3: f64,
+    pub risk_reward_ratio: f64,
+    pub reasoning: String,
+}

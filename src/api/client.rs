@@ -501,4 +501,25 @@ impl Client {
         let response = self.get::<Vec<VolumeSnapshotExchange>>("/markets/volume-snapshot", &[]).await?;
         Ok(response.data)
     }
+
+    #[instrument(skip(self))]
+    pub async fn get_scanner(
+        &self,
+        symbol: &str,
+        timeframe: Option<&str>,
+        bars: Option<u32>,
+        swing_strength: Option<u32>,
+    ) -> Result<ScannerResult> {
+        let mut params: Vec<(&str, String)> = vec![("symbol", symbol.to_string())];
+        if let Some(tf) = timeframe { params.push(("timeframe", tf.to_string())); }
+        if let Some(b) = bars { params.push(("bars", b.to_string())); }
+        if let Some(s) = swing_strength { params.push(("swingStrength", s.to_string())); }
+
+        let url = format!("{}/markets/ttc-scanner", self.api_config.base_url);
+        let headers = self.build_headers()?;
+        let request = self.inner.get(&url).headers(headers).query(&params).build().map_err(TtcError::from)?;
+        debug!("GET {}", url);
+        let response: ApiResponse<ScannerResult> = self.execute_with_retry(request).await?;
+        Ok(response.data)
+    }
 }
