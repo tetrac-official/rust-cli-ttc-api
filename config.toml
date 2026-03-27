@@ -1,0 +1,41 @@
+# Skill Trading CLI Configuration
+
+# Default exchange when not specified
+exchange = "asterdex"
+
+# ============================================================================
+# API Settings
+# ============================================================================
+[api]
+base_url = "https://ttc.box/api/v1"
+timeout = 30
+max_retries = 3
+retry_delay_ms = 500
+
+# ============================================================================
+# Output Settings
+# ============================================================================
+[output]
+format = "table"
+color = true
+
+# ============================================================================
+# Trading Settings
+# ============================================================================
+[trading]
+default_size = 10.0
+confirm_orders = true
+default_leverage = 10
+dry_run = false
+
+# ============================================================================
+# Credentials
+# ============================================================================
+# All credentials live in .env — never put them here.
+#
+# .env (project root):
+#   TTC_AUTH_TOKEN=<session token>       # from: skill-trading login
+#   TTC_PUBLIC_KEY=<your public key>     # from: skill-trading login
+#   EXCHANGE_API_KEY=<exchange key>
+#   EXCHANGE_API_SECRET=<exchange secret>
+#   EXCHANGE_API_PASSPHRASE=<passphrase> # required by OKX, KuCoin, Orderly, Bitget, BloFin

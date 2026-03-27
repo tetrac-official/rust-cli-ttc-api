@@ -1,0 +1,97 @@
+[package]
+name = "skill-trading"
+version = "1.0.0"
+edition = "2021"
+authors = ["ttcbox"]
+description = "Execute trading operations on TTC Box across 15+ exchanges"
+license = "Proprietary"
+readme = "README.md"
+keywords = ["trading", "crypto", "exchange", "cli", "ttc"]
+categories = ["command-line-utilities", "finance"]
+
+[[bin]]
+name = "skill-trading"
+path = "src/main.rs"
+
+[dependencies]
+# CLI Framework
+clap = { version = "4.5", features = ["derive", "env", "string", "color", "suggestions"] }
+clap_complete = "4.5"
+
+# Async Runtime
+tokio = { version = "1.42", features = ["full"] }
+
+# HTTP Client
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Configuration
+config = "0.14"
+toml = "0.8"
+
+# Error Handling
+anyhow = "1.0"
+thiserror = "2.0"
+
+# Logging & Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Terminal Output
+tabled = "0.17"
+console = "0.15"
+indicatif = "0.17"
+colored = "2.1"
+
+# Auto-load .env at startup
+dotenvy = "0.15"
+
+# Secure password input
+rpassword = "7"
+
+# Wallet generation (register command)
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+k256 = "0.13"
+sha2 = "0.10"
+sha3 = "0.10"
+sha1 = "0.10"
+pbkdf2 = "0.12"
+md-5 = "0.10"
+aes = "0.8"
+cbc = { version = "0.1", features = ["alloc"] }
+hex = "0.4"
+rand = "0.8"
+bs58 = "0.5"
+base64 = "0.22"
+
+# Utilities
+uuid = { version = "1.11", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+directories = "5.0"
+
+# Retry Logic
+backoff = { version = "0.4", features = ["tokio"] }
+
+[dev-dependencies]
+mockito = "1.6"
+tokio-test = "0.4"
+assert_cmd = "2.0"
+predicates = "3.1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[features]
+default = []
+debug-logging = ["tracing/release_max_level_debug"]

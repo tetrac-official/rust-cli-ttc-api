@@ -1,0 +1,93 @@
+# Skill Trading CLI Configuration
+#
+# This is the default configuration file for skill-trading CLI.
+# Edit this file to customize your trading preferences.
+#
+# Location: ~/.config/skill-trading/config.toml (Linux/macOS)
+#           %APPDATA%\skill-trading\config.toml (Windows)
+
+# ============================================================================
+# API Settings
+# ============================================================================
+[api]
+# TTC Box API base URL
+base_url = "https://ttc.box/api/v1"
+
+# Request timeout in seconds
+timeout = 30
+
+# Number of retry attempts for failed requests
+max_retries = 3
+
+# Delay between retries in milliseconds
+retry_delay_ms = 500
+
+# ============================================================================
+# Output Settings
+# ============================================================================
+[output]
+# Default output format: table, json, csv, quiet
+format = "table"
+
+# Enable colored output
+color = true
+
+# ============================================================================
+# Trading Settings
+# ============================================================================
+[trading]
+# Default order size
+default_size = 0.001
+
+# Default leverage for new positions
+default_leverage = 10
+
+# Require confirmation before placing orders
+confirm_orders = true
+
+# Dry run mode - don't execute, just show what would happen
+dry_run = false
+
+# ============================================================================
+# Exchange Credentials
+# ============================================================================
+#
+# WARNING: Storing API keys in this file is convenient but less secure.
+# Consider using environment variables for production:
+#
+#   export EXCHANGE_API_KEY="your-key"
+#   export EXCHANGE_API_SECRET="your-secret"
+#
+# Or pass credentials via CLI flags:
+#
+#   skill-trading order limit --exchange phemex --auth-token KEY --api-secret SECRET ...
+#
+
+[exchanges.phemex]
+api_key = "YOUR_PHEMEX_API_KEY"
+api_secret = "YOUR_PHEMEX_API_SECRET"
+
+[exchanges.bybit]
+api_key = "YOUR_BYBIT_API_KEY"
+api_secret = "YOUR_BYBIT_API_SECRET"
+
+[exchanges.binance]
+api_key = "YOUR_BINANCE_API_KEY"
+api_secret = "YOUR_BINANCE_API_SECRET"
+
+# For exchanges requiring passphrase (e.g., OKX, KuCoin)
+# [exchanges.okx]
+# api_key = "YOUR_OKX_API_KEY"
+# api_secret = "YOUR_OKX_API_SECRET"
+# passphrase = "YOUR_OKX_PASSPHRASE"
+
+# ============================================================================
+# TTC Box API Keys
+# ============================================================================
+#
+# Set these via environment variables:
+#
+#   export TTC_AUTH_TOKEN="your-ttc-auth-token"
+#   export TTC_PUBLIC_KEY="your-ttc-public-key"
+#
+# These are required for authentication with the TTC Box API.

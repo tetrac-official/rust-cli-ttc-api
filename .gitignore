@@ -1,0 +1,26 @@
+# Rust
+/target/
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Distribution
+/dist/
+
+# Test coverage
+/coverage/
+
+# Environment
+.env
+
+# Config (user-specific)
+/config.local.toml
