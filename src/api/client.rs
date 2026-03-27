@@ -212,7 +212,7 @@ impl Client {
     }
 
     #[instrument(skip(self, params, credentials))]
-    pub async fn cancel_order(&self, exchange: &str, params: CancelOrderParams, credentials: ExchangeCredentials) -> Result<Order> {
+    pub async fn cancel_order(&self, exchange: &str, params: CancelOrderParams, credentials: ExchangeCredentials) -> Result<bool> {
         let request = ExchangeRequest {
             exchange_name: exchange.to_string(),
             method: "cancelOrder".to_string(),
@@ -225,8 +225,8 @@ impl Client {
         };
 
         info!("Cancelling order on {}", exchange);
-        let response = self.post("/exchanges", &request).await?;
-        Ok(response.data)
+        self.post::<_, serde_json::Value>("/exchanges", &request).await?;
+        Ok(true)
     }
 
     #[instrument(skip(self, credentials))]
@@ -427,5 +427,78 @@ impl Client {
         debug!("POST {}", url);
 
         self.execute_with_retry(request).await
+    }
+
+    async fn get<R: DeserializeOwned>(
+        &self,
+        path: &str,
+        params: &[(&str, &str)],
+    ) -> Result<ApiResponse<R>> {
+        let url = format!("{}{}", self.api_config.base_url, path);
+        let headers = self.build_headers()?;
+
+        let request = self
+            .inner
+            .get(&url)
+            .headers(headers)
+            .query(params)
+            .build()
+            .map_err(TtcError::from)?;
+
+        debug!("GET {}", url);
+
+        self.execute_with_retry(request).await
+    }
+
+    // ========================================================================
+    // Market Data Methods (TTC Box direct endpoints)
+    // ========================================================================
+
+    #[instrument(skip(self))]
+    pub async fn get_hybrid_tickers(
+        &self,
+        market_type: Option<&str>,
+        exchange: Option<&str>,
+        symbol: Option<&str>,
+        min_volume: Option<f64>,
+        min_price: Option<f64>,
+        max_price: Option<f64>,
+        up: Option<f64>,
+        down: Option<f64>,
+    ) -> Result<HybridTickersData> {
+        let mut params: Vec<(&str, String)> = Vec::new();
+        if let Some(t) = market_type { params.push(("type", t.to_string())); }
+        if let Some(e) = exchange { params.push(("exchange", e.to_string())); }
+        if let Some(s) = symbol { params.push(("symbol", s.to_string())); }
+        if let Some(v) = min_volume { params.push(("minimumVolume", v.to_string())); }
+        if let Some(p) = min_price { params.push(("minimumPrice", p.to_string())); }
+        if let Some(p) = max_price { params.push(("maximumPrice", p.to_string())); }
+        if let Some(u) = up { params.push(("up", u.to_string())); }
+        if let Some(d) = down { params.push(("down", d.to_string())); }
+
+        let query: Vec<(&str, &str)> = params.iter().map(|(k, v)| (*k, v.as_str())).collect();
+        let response = self.get::<HybridTickersData>("/markets/hybrid-tickers", &query).await?;
+        Ok(response.data)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn get_funding_rates(&self, symbol: Option<&str>) -> Result<Vec<FundingRate>> {
+        let params: Vec<(&str, &str)> = symbol.map(|s| vec![("symbol", s)]).unwrap_or_default();
+        let response = self.get::<Vec<FundingRate>>("/markets/funding-rates", &params).await?;
+        Ok(response.data)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn get_open_interest(&self, symbol: Option<&str>) -> Result<Vec<OpenInterestItem>> {
+        let body = symbol.map(|s| serde_json::json!({ "symbol": s }))
+            .unwrap_or_else(|| serde_json::json!({}));
+        let response = self.post::<_, Vec<OpenInterestItem>>("/markets/open-interest", &body).await?;
+        Ok(response.data)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn get_volume_snapshot(&self) -> Result<Vec<VolumeSnapshotExchange>> {
+        let response = self.get::<Vec<VolumeSnapshotExchange>>("/markets/volume-snapshot", &[]).await?;
+        Ok(response.data)
     }
 }

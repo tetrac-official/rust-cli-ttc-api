@@ -85,9 +85,13 @@ async fn cancel_order(args: OrdersCancelArgs, settings: &AppConfig, format: Outp
         client_order_id: args.client_order_id,
     };
 
-    let order = client.cancel_order(&args.exchange, params, credentials).await?;
+    let cancelled = client.cancel_order(&args.exchange, params, credentials).await?;
 
-    printer.success(&format!("Order {} cancelled on {}", order.order_id, args.exchange));
+    if cancelled {
+        printer.success(&format!("Order cancelled on {}", args.exchange));
+    } else {
+        printer.info(&format!("Order not found or already cancelled on {}", args.exchange));
+    }
 
     Ok(())
 }

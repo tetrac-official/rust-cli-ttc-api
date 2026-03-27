@@ -1,5 +1,25 @@
 use serde::{Deserialize, Deserializer, Serialize};
 
+/// Deserialize a field that may be either a JSON number or a quoted string into String.
+fn deserialize_string_or_int<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::{self, Visitor};
+    struct StringOrInt;
+    impl<'de> Visitor<'de> for StringOrInt {
+        type Value = String;
+        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "a string or integer")
+        }
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<String, E> { Ok(v.to_owned()) }
+        fn visit_string<E: de::Error>(self, v: String) -> Result<String, E> { Ok(v) }
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<String, E> { Ok(v.to_string()) }
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<String, E> { Ok(v.to_string()) }
+    }
+    deserializer.deserialize_any(StringOrInt)
+}
+
 /// Deserialize a field that may be either a JSON number or a quoted string into f64.
 fn deserialize_f64_or_string<'de, D>(deserializer: D) -> Result<f64, D::Error>
 where
@@ -209,12 +229,11 @@ pub struct StopOrderParams {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct CancelOrderParams {
     pub symbol: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "orderID", skip_serializing_if = "Option::is_none")]
     pub order_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "clientOrderID", skip_serializing_if = "Option::is_none")]
     pub client_order_id: Option<String>,
 }
 
@@ -273,8 +292,9 @@ pub struct GetBestBidAskParams {
 pub struct ApiResponse<T> {
     pub success: bool,
     pub data: T,
-    pub code: u16,
     #[serde(default)]
+    pub code: u16,
+    #[serde(default, alias = "error")]
     pub message: Option<String>,
 }
 
@@ -285,18 +305,26 @@ pub struct ApiResponse<T> {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Order {
+    #[serde(default, alias = "id", alias = "order_id", deserialize_with = "deserialize_string_or_int")]
     pub order_id: String,
+    #[serde(default)]
     pub symbol: String,
+    #[serde(default)]
     pub side: String,
+    #[serde(default, alias = "positionSide")]
     pub position_side: String,
+    #[serde(default, alias = "type", alias = "order_type")]
     pub order_type: String,
+    #[serde(default)]
     pub price: f64,
     pub quantity: f64,
+    #[serde(default)]
     pub status: String,
+    #[serde(default)]
     pub timestamp: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub filled_quantity: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub average_price: Option<f64>,
 }
 
@@ -386,4 +414,100 @@ pub struct HedgeModeResult {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CancelAllResult {
     pub message: String,
+}
+
+// ============================================================================
+// Market Data Models (TTC Box direct endpoints)
+// ============================================================================
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HybridTicker {
+    pub symbol: String,
+    #[serde(default)]
+    pub last_price: String,
+    #[serde(default)]
+    pub price_change_percent: String,
+    #[serde(default)]
+    pub high_price: String,
+    #[serde(default)]
+    pub low_price: String,
+    #[serde(default)]
+    pub volume: String,
+    #[serde(default)]
+    pub quote_volume: String,
+    #[serde(default)]
+    pub bid_price: String,
+    #[serde(default)]
+    pub ask_price: String,
+    #[serde(default)]
+    pub open_interest: Option<String>,
+    #[serde(default)]
+    pub funding: Option<String>,
+    #[serde(default)]
+    pub source: String,
+    pub sources: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct HybridTickerList {
+    pub data: Vec<HybridTicker>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct HybridTickersData {
+    pub spot: HybridTickerList,
+    pub futures: HybridTickerList,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FundingRate {
+    pub exchange: String,
+    pub symbol: String,
+    pub funding_rate: f64,
+    pub next_funding_time: i64,
+    pub timestamp: i64,
+    #[serde(default)]
+    pub open_interest: Option<f64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenInterestItem {
+    pub symbol: String,
+    #[serde(deserialize_with = "deserialize_f64_or_string")]
+    pub open_interest: f64,
+    #[serde(deserialize_with = "deserialize_f64_or_string")]
+    pub open_interest_usd: f64,
+    #[serde(deserialize_with = "deserialize_f64_or_string")]
+    pub price: f64,
+    #[serde(deserialize_with = "deserialize_f64_or_string")]
+    pub volume_usd: f64,
+    pub timestamp: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VolumeSnapshotExchange {
+    pub exchange: String,
+    pub display_name: String,
+    pub chain: String,
+    pub total_volume_24h: f64,
+    pub total_open_interest: f64,
+    #[serde(default)]
+    pub tvl: f64,
+    pub markets: Vec<VolumeSnapshotMarket>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VolumeSnapshotMarket {
+    pub symbol: String,
+    pub volume_24h: f64,
+    #[serde(default)]
+    pub open_interest: f64,
+    pub price: f64,
+    #[serde(default)]
+    pub funding_rate: f64,
 }

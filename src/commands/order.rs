@@ -234,10 +234,13 @@ async fn cancel(args: OrderCancelArgs, settings: &AppConfig, format: OutputForma
 
     info!("Canceling order on {}", args.exchange);
 
-    let result = client.cancel_order(&args.exchange, params, credentials).await?;
+    let cancelled = client.cancel_order(&args.exchange, params, credentials).await?;
 
-    printer.success(&format!("Order canceled: {} on {}", result.order_id, args.exchange));
-    println!("Status: {}", result.status);
+    if cancelled {
+        printer.success(&format!("Order cancelled on {}", args.exchange));
+    } else {
+        printer.info(&format!("Order not found or already cancelled on {}", args.exchange));
+    }
 
     Ok(())
 }

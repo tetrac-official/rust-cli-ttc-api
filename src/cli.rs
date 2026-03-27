@@ -870,6 +870,22 @@ pub enum MarketSubcommands {
     /// Get best bid and ask prices
     #[command(alias = "bb", alias = "book")]
     BestBidAsk(MarketBestBidAskArgs),
+
+    /// Get aggregated tickers across all exchanges (spot + futures, with OI and funding)
+    #[command(alias = "ht", alias = "agg")]
+    HybridTickers(MarketHybridTickersArgs),
+
+    /// Get funding rates across all exchanges
+    #[command(alias = "fr", alias = "funding")]
+    FundingRates(MarketFundingRatesArgs),
+
+    /// Get open interest across all exchanges
+    #[command(alias = "oi")]
+    OpenInterest(MarketOpenInterestArgs),
+
+    /// Get volume snapshot for DEX and CEX exchanges
+    #[command(alias = "vol", alias = "vs")]
+    VolumeSnapshot(MarketVolumeSnapshotArgs),
 }
 
 #[derive(Debug, Args)]
@@ -918,9 +934,67 @@ pub struct MarketBestBidAskArgs {
     pub passphrase: Option<String>,
 }
 
+#[derive(Debug, Args)]
+pub struct MarketHybridTickersArgs {
+    /// Market type: spot or futures (default: all)
+    #[arg(long, value_enum)]
+    pub market_type: Option<MarketTypeArg>,
+
+    /// Filter by exchange source (e.g. binance, orderly, hyperliquid)
+    #[arg(long = "source")]
+    pub source: Option<String>,
+
+    /// Filter by symbol (e.g. NEARUSDT)
+    #[arg(short, long)]
+    pub symbol: Option<String>,
+
+    /// Minimum 24h volume in USD
+    #[arg(long)]
+    pub min_volume: Option<f64>,
+
+    /// Minimum price filter
+    #[arg(long)]
+    pub min_price: Option<f64>,
+
+    /// Maximum price filter
+    #[arg(long)]
+    pub max_price: Option<f64>,
+
+    /// Minimum % gain (e.g. 5 for +5%)
+    #[arg(long)]
+    pub up: Option<f64>,
+
+    /// Minimum % loss magnitude (e.g. 5 for -5%)
+    #[arg(long)]
+    pub down: Option<f64>,
+}
+
+#[derive(Debug, Args)]
+pub struct MarketFundingRatesArgs {
+    /// Filter by symbol (e.g. NEARUSDT)
+    #[arg(short, long)]
+    pub symbol: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct MarketOpenInterestArgs {
+    /// Filter by symbol (e.g. NEARUSDT)
+    #[arg(short, long)]
+    pub symbol: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct MarketVolumeSnapshotArgs {}
+
 // ============================================================================
 // Value Enums
 // ============================================================================
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum MarketTypeArg {
+    Spot,
+    Futures,
+}
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum PositionSideArg {
