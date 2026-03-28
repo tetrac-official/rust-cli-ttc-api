@@ -181,7 +181,7 @@ fn generate_email() -> String {
     rand::thread_rng().fill_bytes(&mut bytes);
     let random_part = base64::Engine::encode(
         &base64::engine::general_purpose::URL_SAFE_NO_PAD,
-        &bytes,
+        bytes,
     );
     let days = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

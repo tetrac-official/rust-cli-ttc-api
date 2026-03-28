@@ -68,9 +68,9 @@ For each candidate, run the scanner and check R/R. Stop at the first symbol that
 Before placing any orders, run the mandatory checks from `skill-trading`:
 
 ```
-skill-trading account balance
-skill-trading position get
-skill-trading order open
+skill-trading account balance -e <exchange>
+skill-trading position get -e <exchange>
+skill-trading order open -e <exchange>
 ```
 
 - Confirm available balance > 0
@@ -95,7 +95,7 @@ half_qty = quantity / 2   (round down to valid lot size)
 
 Always fetch the tick size from the bid/ask spread before placing:
 ```
-skill-trading market best-bid-ask --symbol <SYMBOL>
+skill-trading market best-bid-ask -e <exchange> --symbol <SYMBOL>
 ```
 Round all prices to match the observed tick size.
 
@@ -107,26 +107,26 @@ Round all prices to match the observed tick size.
 
 ```
 # Entry — buy limit at signal entry price
-skill-trading order limit --symbol <SYM> --buy --quantity <QTY> --price <ENTRY>
+skill-trading order limit -e <exchange> --symbol <SYM> --buy --quantity <QTY> --price <ENTRY>
 
 # TP1 — sell half at TP1 (reduce-only)
-skill-trading order limit --symbol <SYM> --sell --quantity <HALF_QTY> --price <TP1> --reduce-only
+skill-trading order limit -e <exchange> --symbol <SYM> --sell --quantity <HALF_QTY> --price <TP1> --reduce-only
 
 # TP2 — sell half at TP2 (reduce-only)
-skill-trading order limit --symbol <SYM> --sell --quantity <HALF_QTY> --price <TP2> --reduce-only
+skill-trading order limit -e <exchange> --symbol <SYM> --sell --quantity <HALF_QTY> --price <TP2> --reduce-only
 ```
 
 ### SHORT setup
 
 ```
 # Entry — sell limit at signal entry price
-skill-trading order limit --symbol <SYM> --sell --quantity <QTY> --price <ENTRY>
+skill-trading order limit -e <exchange> --symbol <SYM> --sell --quantity <QTY> --price <ENTRY>
 
 # TP1 — buy half at TP1 (reduce-only)
-skill-trading order limit --symbol <SYM> --buy --quantity <HALF_QTY> --price <TP1> --reduce-only
+skill-trading order limit -e <exchange> --symbol <SYM> --buy --quantity <HALF_QTY> --price <TP1> --reduce-only
 
 # TP2 — buy half at TP2 (reduce-only)
-skill-trading order limit --symbol <SYM> --buy --quantity <HALF_QTY> --price <TP2> --reduce-only
+skill-trading order limit -e <exchange> --symbol <SYM> --buy --quantity <HALF_QTY> --price <TP2> --reduce-only
 ```
 
 ---

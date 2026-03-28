@@ -146,11 +146,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "placeLimitOrder".to_string(),
             params,
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         info!("Placing limit order on {}", exchange);
@@ -164,11 +160,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "placeMarketOrder".to_string(),
             params,
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         info!("Placing market order on {}", exchange);
@@ -182,11 +174,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "placeStopOrder".to_string(),
             params,
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         info!("Placing stop order on {}", exchange);
@@ -200,11 +188,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "getOrders".to_string(),
             params: symbol.map(String::from),
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         let response = self.post("/exchanges", &request).await?;
@@ -217,11 +201,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "cancelOrder".to_string(),
             params,
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         info!("Cancelling order on {}", exchange);
@@ -235,11 +215,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "cancelAllOrders".to_string(),
             params: symbol.map(String::from),
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         info!("Cancelling all orders on {}", exchange);
@@ -261,11 +237,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "getPositions".to_string(),
             params,
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         let response = self.post("/exchanges", &request).await?;
@@ -278,11 +250,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "closePosition".to_string(),
             params,
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         info!("Closing position on {}", exchange);
@@ -300,11 +268,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "getBalance".to_string(),
             params: GetBalanceParams { asset: None },
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         let response = self.post("/exchanges", &request).await?;
@@ -317,11 +281,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "setLeverage".to_string(),
             params,
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         info!("Setting leverage on {}", exchange);
@@ -335,11 +295,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "setMarginMode".to_string(),
             params,
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         info!("Setting margin mode on {}", exchange);
@@ -353,11 +309,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "setHedgeMode".to_string(),
             params: serde_json::json!({ "hedgeMode": enabled }),
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         info!("Setting hedge mode on {}", exchange);
@@ -375,11 +327,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "getTickers".to_string(),
             params,
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         let response = self.post("/exchanges", &request).await?;
@@ -393,11 +341,7 @@ impl Client {
             exchange_name: exchange.to_string(),
             method: "getBestBidAsk".to_string(),
             params: params.symbol,
-            credentials: Credentials {
-                api_key: credentials.api_key,
-                api_secret: credentials.api_secret,
-                passphrase: credentials.passphrase,
-            },
+            credentials,
         };
 
         let response = self.post("/exchanges", &request).await?;
@@ -455,6 +399,7 @@ impl Client {
     // ========================================================================
 
     #[instrument(skip(self))]
+    #[allow(clippy::too_many_arguments)]
     pub async fn get_hybrid_tickers(
         &self,
         market_type: Option<&str>,

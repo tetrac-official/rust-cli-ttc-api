@@ -96,7 +96,7 @@ Central dispatch for all exchange operations.
 
 > `getTickers` is the only method that does not require `credentials`.
 
-> `walletAddress` is injected server-side for `orderly` from the authenticated user's public key — you do not need to send it.
+> For `orderly` with **email-registered** accounts: set `ORDERLY_MAIN_WALLET_ADDRESS` in `.env` — the CLI sends it as `walletAddress` in credentials so the server routes requests to your real trading wallet. Web3 users do not need this; their `TTC_PUBLIC_KEY` is already their Orderly wallet address.
 
 ---
 
@@ -297,7 +297,6 @@ All market endpoints are `GET` requests. All require `ttc-auth-token` + `ttc-pub
 | `GET /api/v1/markets/open-interest` | Open interest data |
 | `GET /api/v1/markets/hybrid-tickers` | Aggregated tickers across exchanges |
 | `GET /api/v1/markets/ttc-scanner` | TTC market scanner |
-| `GET /api/v1/markets/gann-scanner` | Gann analysis scanner |
 | `GET /api/v1/markets/volume-snapshot` | Volume snapshot |
 | `GET /api/v1/markets/swap-volume` | Swap volume data |
 | `GET /api/v1/markets/listings` | New token listings |
@@ -322,4 +321,4 @@ All market endpoints are `GET` requests. All require `ttc-auth-token` + `ttc-pub
 - `getBestBidAsk` `params` must be a plain string (the symbol), not `{ symbol: "..." }` — the server wraps it internally as `{ symbol: params }`.
 - `getOrders` is the correct method name. `getOpenOrders` returns 403.
 - `getTickers` is the only public method — all others require exchange API credentials.
-- For `orderly`, `walletAddress` is automatically injected from the authenticated user's public key.
+- For `orderly` with email-registered accounts, `walletAddress` must be sent explicitly in credentials. Set `ORDERLY_MAIN_WALLET_ADDRESS` in `.env` — the CLI handles this automatically. The server resolves the account as: `credentials.walletAddress || userWalletAddress`.

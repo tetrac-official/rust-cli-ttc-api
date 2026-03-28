@@ -130,7 +130,7 @@ impl Tableable for Position {
         };
 
         println!(
-            "{} {} {} {}x @ ${:.2} | PnL: {}",
+            "{} {} {} {}x @ ${:.4} | PnL: {}",
             "POS".blue(),
             self.symbol.white(),
             self.position_side.to_uppercase().yellow(),
@@ -139,7 +139,7 @@ impl Tableable for Position {
             pnl_color
         );
         println!(
-            "   Size: {} | Mark: ${:.2} | Liq: ${:.2}",
+            "   Size: {} | Mark: ${:.4} | Liq: ${:.4}",
             self.size, self.mark_price, self.liquidation_price
         );
     }
@@ -209,14 +209,14 @@ impl Tableable for Ticker {
         };
 
         println!(
-            "{} {} | ${:.2} | {}",
+            "{} {} | ${:.4} | {}",
             "MKT".purple(),
             self.symbol.white().bold(),
             self.last_price,
             change_color
         );
         println!(
-            "   Vol: ${:.0} | High: ${:.2} | Low: ${:.2}",
+            "   Vol: ${:.0} | High: ${:.4} | Low: ${:.4}",
             self.volume, self.high, self.low
         );
     }

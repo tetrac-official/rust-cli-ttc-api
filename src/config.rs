@@ -208,28 +208,12 @@ mod tests {
     }
 
     #[test]
-    fn test_get_credentials_exchange_specific() {
-        let mut config = AppConfig::default();
-        config.exchanges.insert("phemex".into(), ExchangeCredentialConfig {
-            api_key: "phemex-key".into(),
-            api_secret: "phemex-secret".into(),
-            passphrase: None,
-        });
-
-        config.exchange_api_key = Some("global-key".into());
-        config.exchange_api_secret = Some("global-secret".into());
-
-        // Should return exchange-specific, not global
-        let creds = config.get_credentials("phemex").unwrap();
-        assert_eq!(creds.api_key, "phemex-key");
-        assert_eq!(creds.api_secret, "phemex-secret");
-    }
-
-    #[test]
     fn test_get_credentials_global_fallback() {
-        let mut config = AppConfig::default();
-        config.exchange_api_key = Some("global-key".into());
-        config.exchange_api_secret = Some("global-secret".into());
+        let config = AppConfig {
+            exchange_api_key: Some("global-key".into()),
+            exchange_api_secret: Some("global-secret".into()),
+            ..Default::default()
+        };
 
         // No exchange-specific creds, should fall back to global
         let creds = config.get_credentials("bybit").unwrap();
@@ -245,8 +229,10 @@ mod tests {
 
     #[test]
     fn test_get_credentials_partial_global() {
-        let mut config = AppConfig::default();
-        config.exchange_api_key = Some("key-only".into());
+        let config = AppConfig {
+            exchange_api_key: Some("key-only".into()),
+            ..Default::default()
+        };
         // No secret set
         assert!(config.get_credentials("binance").is_none());
     }

@@ -140,14 +140,14 @@ fn evp_bytes_to_key(password: &[u8], salt: &[u8]) -> ([u8; 32], [u8; 16]) {
     };
     let d2 = {
         let mut h = Md5::new();
-        h.update(&d1);
+        h.update(d1);
         h.update(password);
         h.update(salt);
         h.finalize()
     };
     let d3 = {
         let mut h = Md5::new();
-        h.update(&d2);
+        h.update(d2);
         h.update(password);
         h.update(salt);
         h.finalize()

@@ -14,6 +14,7 @@ Load these on demand when deeper context is needed:
 
 - `references/api-reference.md` — full TTC Box REST API: all methods, param shapes, response formats, supported exchanges, quirks
 - `references/exchanges.md` — exchange names, credential setup, `ORDERLY_MAIN_WALLET_ADDRESS` guide
+- `references/troubleshooting.md` — every error message with cause and fix
 
 ---
 
@@ -84,7 +85,7 @@ skill-trading order open
 - Use `--dry-run` first when testing a new order type or exchange.
 - If the user says "place an order at 1% under price", always fetch the current price first via:
   ```
-  skill-trading market best-bid-ask --symbol <SYMBOL>
+  skill-trading market best-bid-ask -e <exchange> --symbol <SYMBOL>
   ```
   Then calculate: `price = bid × 0.99`, `quantity = budget / price`.
 
@@ -160,10 +161,13 @@ Shows 24h volume, open interest, and TVL per exchange (CEX + DEX).
 ```
 skill-trading market scanner --symbol <SYM> [--timeframe 1h] [--bars 1000] [--swing-strength 10]
 ```
-Runs fan analysis on a symbol. Returns:
-- **Signal** — direction (LONG/SHORT), confidence, entry price, stop-loss, TP1/TP2/TP3, R/R ratio
-- **Scoring** — long score, short score, preferred direction, active fan line per side
-- **Fan lines** — all angle levels with current price, % distance, and time-to-reach for nearby lines
+Runs technical analysis on a symbol. Returns the signal block:
+- **Direction** — LONG or SHORT
+- **Confidence** — HIGH / MEDIUM / LOW
+- **Entry** — limit order price
+- **Stop Loss** — with % risk from entry
+- **TP1 / TP2 / TP3** — take-profit targets with % gain from entry
+- **R/R ratio** — risk/reward multiplier
 
 Parameters:
 - `--timeframe` — kline interval: `1m`, `5m`, `15m`, `1h`, `4h`, `1d` (default: `1h`)

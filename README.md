@@ -4,6 +4,8 @@ Execute trading operations on TTC Box across 15+ exchanges.
 
 Place orders, manage positions, scan markets, and control risk. Designed for AI agents and automated trading workflows.
 
+> **First time here?** Read [`GETTING_STARTED.md`](./GETTING_STARTED.md) — it walks through the full setup and first trade end-to-end.
+
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-Proprietary-blue.svg)]()
 [![Version](https://img.shields.io/badge/version-1.0.0-green.svg)]()
@@ -90,13 +92,17 @@ skill-trading register
 skill-trading login
 ```
 
-Both commands prompt for email and passkey (hidden input). Session tokens expire after 24 hours — run `login` again to refresh.
+**`register`** — auto-generates a random 64-char hex passkey and a random email if none are provided. No prompts. Saves `TTC_EMAIL`, `TTC_PASSKEY`, `TTC_AUTH_TOKEN`, `TTC_PUBLIC_KEY`, and `TTC_TOKEN_ISSUED_AT` to `.env`. Never overwrites exchange API keys.
 
-> **Keep your passkey safe.** It is the only way to recover your encrypted wallet keys.
+**`login`** — reads `TTC_EMAIL` and `TTC_PASSKEY` from `.env` automatically; prompts only if either is missing. Refreshes `TTC_AUTH_TOKEN` and `TTC_TOKEN_ISSUED_AT`. Session tokens expire after 24 hours.
+
+> **Keep your passkey safe.** It encrypts your generated wallet keys — losing it means losing access to those wallets.
 
 ## Generated Wallets
-Version 1.0.0 : 
-- CLI tools don't use any of these generated wallets. They are only required for registeration for the ttc.box GUI logic. 
+
+During `register`, four wallets are generated client-side (Solana, Orderly, EVM main, EVM signing). Private keys are encrypted with a key derived from your passkey and email, then sent to TTC Box — they are never stored unencrypted locally.
+
+CLI trading operations use exchange API keys, not these wallets. The wallets are used by the TTC Box web interface for Web3 authentication.
 
 ---
 

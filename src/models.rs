@@ -145,16 +145,7 @@ pub struct ExchangeRequest<T> {
     pub exchange_name: String,
     pub method: String,
     pub params: T,
-    pub credentials: Credentials,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Credentials {
-    pub api_key: String,
-    pub api_secret: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub passphrase: Option<String>,
+    pub credentials: ExchangeCredentials,
 }
 
 /// Exchange credentials sent in every API request body.
@@ -426,6 +417,7 @@ pub struct CancelAllResult {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct HybridTicker {
     pub symbol: String,
     #[serde(default)]
@@ -466,6 +458,7 @@ pub struct HybridTickersData {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct FundingRate {
     pub exchange: String,
     pub symbol: String,
@@ -478,6 +471,7 @@ pub struct FundingRate {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct OpenInterestItem {
     pub symbol: String,
     #[serde(deserialize_with = "deserialize_f64_or_string")]
@@ -493,6 +487,7 @@ pub struct OpenInterestItem {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct VolumeSnapshotExchange {
     pub exchange: String,
     pub display_name: String,
@@ -506,6 +501,7 @@ pub struct VolumeSnapshotExchange {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct VolumeSnapshotMarket {
     pub symbol: String,
     pub volume_24h: f64,

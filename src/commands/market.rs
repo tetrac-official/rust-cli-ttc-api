@@ -63,8 +63,8 @@ async fn get_best_bid_ask(args: MarketBestBidAskArgs, settings: &AppConfig, form
     let spread = ask - bid;
 
     printer.success(&format!("Best Bid/Ask for {} on {}", args.symbol, args.exchange));
-    println!("  Bid: {} @ ${:.2}", result.best_bid.quantity, bid);
-    println!("  Ask: {} @ ${:.2}", result.best_ask.quantity, ask);
+    println!("  Bid: {} @ ${:.4}", result.best_bid.quantity, bid);
+    println!("  Ask: {} @ ${:.4}", result.best_ask.quantity, ask);
     println!("  Spread: ${:.4} ({:.4}%)", spread, if bid > 0.0 { (spread / bid) * 100.0 } else { 0.0 });
 
     Ok(())
