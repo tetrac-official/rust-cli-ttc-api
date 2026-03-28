@@ -1053,15 +1053,15 @@ pub enum MarginModeArg {
 
 #[derive(Debug, Args)]
 pub struct LoginArgs {
-    /// Email address (will prompt if not provided)
-    #[arg(long)]
+    /// Email address (uses TTC_EMAIL env var if not provided)
+    #[arg(long, env = "TTC_EMAIL")]
     pub email: Option<String>,
 }
 
 #[derive(Debug, Args)]
 pub struct RegisterArgs {
-    /// Email address (will prompt if not provided)
-    #[arg(long)]
+    /// Email address (auto-generated if not provided)
+    #[arg(long, env = "TTC_EMAIL")]
     pub email: Option<String>,
 }
 

@@ -166,6 +166,10 @@ pub struct ExchangeCredentials {
     /// Required for OKX, KuCoin, Orderly (broker ID), Bitget, BloFin
     #[serde(skip_serializing_if = "Option::is_none")]
     pub passphrase: Option<String>,
+    /// Orderly main wallet address — required for email-registered CLI users.
+    /// Set ORDERLY_MAIN_WALLET_ADDRESS in .env
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wallet_address: Option<String>,
 }
 
 // ============================================================================

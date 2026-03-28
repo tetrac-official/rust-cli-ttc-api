@@ -8,6 +8,13 @@ description: Execute trading operations on TTC Box across 15+ exchanges. Use whe
 This skill governs how an AI assistant should interact with the `skill-trading` CLI.
 It exists to prevent hallucination and unsafe order execution.
 
+## Reference Files
+
+Load these on demand when deeper context is needed:
+
+- `references/api-reference.md` — full TTC Box REST API: all methods, param shapes, response formats, supported exchanges, quirks
+- `references/exchanges.md` — exchange names, credential setup, `ORDERLY_MAIN_WALLET_ADDRESS` guide
+
 ---
 
 ## MANDATORY PRE-ORDER CHECKLIST

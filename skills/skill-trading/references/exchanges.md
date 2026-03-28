@@ -41,14 +41,31 @@ These hit TTC Box aggregation endpoints directly:
 Credentials are loaded from `.env` in the working directory:
 
 ```env
-TTC_AUTH_TOKEN=your_ttc_token
-TTC_PUBLIC_KEY=your_public_key
+# TTC Box session (written automatically by `register` and `login`)
+TTC_AUTH_TOKEN=your_ttc_auth_token
+TTC_PUBLIC_KEY=your_ttc_public_key
+TTC_EMAIL=your_ttc_email
+TTC_PASSKEY=your_generated_passkey
+TTC_TOKEN_ISSUED_AT=unix_timestamp
 TTC_EXCHANGE=orderly
 
-EXCHANGE_API_KEY=your_exchange_key
-EXCHANGE_API_SECRET=your_exchange_secret
-EXCHANGE_API_PASSPHRASE=your_passphrase
+# Orderly trading credentials
+ORDERLY_API_KEY=your_orderly_api_key
+ORDERLY_API_SECRET=your_orderly_api_secret
+ORDERLY_API_PASSPHRASE=your_broker_id       # e.g. what_exchange, woofi_pro, ttc
+
+# Required for email-registered CLI users (see note below)
+ORDERLY_MAIN_WALLET_ADDRESS=your_orderly_wallet_public_key
 ```
+
+### ORDERLY_MAIN_WALLET_ADDRESS
+
+This is required if you registered your TTC Box account via **email** (not Web3).
+
+- **Web3 users** — your `TTC_PUBLIC_KEY` IS your Orderly wallet, so this is not needed.
+- **Email/CLI users** — your `TTC_PUBLIC_KEY` is a random generated key. You must set `ORDERLY_MAIN_WALLET_ADDRESS` to your real Orderly trading wallet public key so the server can derive the correct account credentials.
+
+When set, it is sent as `walletAddress` in every Orderly request. The server uses `credentials.walletAddress || userWalletAddress`, so Web3 users are unaffected.
 
 Or pass per-command:
 ```

@@ -37,7 +37,7 @@ Place orders, manage positions, scan markets, and control risk. Designed for AI 
 
 ```bash
 # Clone the repository
-git clone https://github.com/ttcbox/rust-cli-ttc-api.git
+git clone https://gitlab.com/tradingtoolcrypto/rust-cli-ttc-api.git
 cd rust-cli-ttc-api
 
 # Debug build (fast, for development)
@@ -52,23 +52,33 @@ make install
 
 ### Configure
 
-Copy the example config and fill in your credentials:
+Copy the example config and fill in your settings (Default is fine):
 
 ```bash
 cp config.example.toml config.toml
 ```
 
-Or use a `.env` file in the working directory:
+Then use a `.env` file in the working directory for all your exchange account api keys:
 
 ```env
+# TTC Box session (written automatically by `register` and `login`)
 TTC_AUTH_TOKEN=your_ttc_auth_token
 TTC_PUBLIC_KEY=your_ttc_public_key
+TTC_EMAIL=your_ttc_email
+TTC_PASSKEY=your_generated_passkey
+TTC_TOKEN_ISSUED_AT=unix_timestamp
 TTC_EXCHANGE=orderly
 
-EXCHANGE_API_KEY=your_exchange_key
-EXCHANGE_API_SECRET=your_exchange_secret
-EXCHANGE_API_PASSPHRASE=your_passphrase   # required for Orderly, OKX, KuCoin, Bitget, BloFin
+# Orderly trading credentials
+ORDERLY_API_KEY=your_orderly_api_key
+ORDERLY_API_SECRET=your_orderly_api_secret
+ORDERLY_API_PASSPHRASE=your_broker_id    # e.g. what_exchange, woofi_pro, ttc
+
+# Required for email-registered CLI users only (not needed for Web3 users)
+ORDERLY_MAIN_WALLET_ADDRESS=your_orderly_wallet_public_key
 ```
+
+> **Email vs Web3 users:** If you registered via Web3, your `TTC_PUBLIC_KEY` is already your Orderly wallet — `ORDERLY_MAIN_WALLET_ADDRESS` is not needed. If you registered via email (CLI `register` command), set `ORDERLY_MAIN_WALLET_ADDRESS` to your real Orderly trading wallet public key so the server routes requests to the correct account.
 
 ### Authenticate
 
@@ -83,6 +93,10 @@ skill-trading login
 Both commands prompt for email and passkey (hidden input). Session tokens expire after 24 hours — run `login` again to refresh.
 
 > **Keep your passkey safe.** It is the only way to recover your encrypted wallet keys.
+
+## Generated Wallets
+Version 1.0.0 : 
+- CLI tools don't use any of these generated wallets. They are only required for registeration for the ttc.box GUI logic. 
 
 ---
 
