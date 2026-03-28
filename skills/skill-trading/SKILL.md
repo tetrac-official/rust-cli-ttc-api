@@ -1,3 +1,8 @@
+---
+name: skill-trading
+description: Execute trading operations on TTC Box across 15+ exchanges. Use when the user wants to place orders, cancel orders, check balances, view positions, set leverage, or fetch market data (tickers, funding rates, open interest, scanner signals).
+---
+
 # skill-trading — Order Management Skill
 
 This skill governs how an AI assistant should interact with the `skill-trading` CLI.

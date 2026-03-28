@@ -1,3 +1,8 @@
+---
+name: skill-shark
+description: Signal-driven trade setup strategy. Use when the user wants to find a trade, scan a market for an entry, or automatically build a bracketed order (entry + take-profits) based on technical analysis. Requires skill-trading to be installed.
+---
+
 # skill-shark — Trade Setup Strategy
 
 skill-shark is a signal-driven trade setup strategy. It uses the TTC Scanner to find high-probability entries with defined risk, then sizes and places orders accordingly. If no qualifying setup exists on the requested symbol, it hunts for better setups across the market using volume and open interest data.

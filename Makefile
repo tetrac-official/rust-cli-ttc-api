@@ -21,13 +21,17 @@ build:
 	cargo build $(DEV_FLAGS)
 	@echo "✅ Done: target/debug/$(BINARY)"
 
-## release: Build optimized release binary
+## release: Build optimized release binary and copy into skill scripts folder
 release:
 	@echo "🚀 Building release binary..."
 	cargo build $(RELEASE_FLAGS)
 	@strip target/release/$(BINARY) 2>/dev/null || true
 	@echo "✅ Done: target/release/$(BINARY)"
 	@ls -lh target/release/$(BINARY)
+	@mkdir -p skills/skill-trading/scripts
+	@cp target/release/$(BINARY) skills/skill-trading/scripts/$(BINARY)
+	@chmod +x skills/skill-trading/scripts/$(BINARY)
+	@echo "✅ skills/skill-trading/scripts/$(BINARY) updated"
 
 ## install: Install binary to $(PREFIX)/bin
 install: release
