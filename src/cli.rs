@@ -44,6 +44,11 @@ pub enum Commands {
 
     /// Time-Weighted Average Price position builder
     Twap(TwapArgs),
+
+    /// Place a single TWAP slice — one market order for a fixed USD amount.
+    /// Designed for agent-controlled loops via /loop. Prints result as one line.
+    #[command(name = "twap-slice")]
+    TwapSlice(TwapSliceArgs),
 }
 
 // ============================================================================
@@ -1157,6 +1162,62 @@ pub struct TwapArgs {
     pub api_secret: Option<String>,
 
     /// Exchange API passphrase (required by OKX, KuCoin, Orderly, Bitget, BloFin)
+    #[arg(long, env = "EXCHANGE_API_PASSPHRASE")]
+    pub passphrase: Option<String>,
+
+    /// Resume a previous TWAP run from saved state
+    #[arg(long)]
+    pub resume: bool,
+
+    /// Leverage multiplier — used to calculate margin required (budget / leverage).
+    /// Also sets leverage on the exchange before the first slice.
+    #[arg(long)]
+    pub leverage: Option<u32>,
+}
+
+// ============================================================================
+// TwapSlice — atomic single-slice command for /loop agent control
+// ============================================================================
+
+#[derive(Debug, Args)]
+pub struct TwapSliceArgs {
+    /// Exchange name
+    #[arg(short, long, env = "TTC_EXCHANGE")]
+    pub exchange: String,
+
+    /// Trading symbol (e.g. NEARUSDT)
+    #[arg(short, long)]
+    pub symbol: String,
+
+    /// Order side: buy
+    #[arg(long, conflicts_with = "sell")]
+    pub buy: bool,
+
+    /// Order side: sell
+    #[arg(long, conflicts_with = "buy")]
+    pub sell: bool,
+
+    /// USD notional amount for this single slice
+    #[arg(long)]
+    pub amount: f64,
+
+    /// Quantity decimal precision (0 = integer; 3 = BTC/ETH style)
+    #[arg(long, default_value = "0")]
+    pub decimals: u32,
+
+    /// Slice label for output (e.g. "3/13") — optional, purely cosmetic
+    #[arg(long)]
+    pub label: Option<String>,
+
+    /// Exchange API key
+    #[arg(long, env = "EXCHANGE_API_KEY")]
+    pub api_key: Option<String>,
+
+    /// Exchange API secret
+    #[arg(long, env = "EXCHANGE_API_SECRET")]
+    pub api_secret: Option<String>,
+
+    /// Exchange API passphrase
     #[arg(long, env = "EXCHANGE_API_PASSPHRASE")]
     pub passphrase: Option<String>,
 }

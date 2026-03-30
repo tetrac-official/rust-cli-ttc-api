@@ -23,6 +23,7 @@ Place orders, manage positions, scan markets, and control risk. Designed for AI 
 - **Market Data** — Cross-exchange tickers, funding rates, open interest, volume snapshots
 - **TTC Scanner** — Technical analysis signal with entry, stop-loss, and take-profit levels
 - **TWAP Builder** — Time-weighted average price execution: split a budget into equal slices over a time window
+- **Atomic TWAP Slice** — Single-order building block for agent-controlled loops (use with Claude Code `/loop`)
 - **Trailing Stop Watch** — Polling loop that activates a trailing stop once a position enters profit
 - **Dry-Run Mode** — Preview all mutations without executing (`--dry-run`)
 - **Rich Output** — Table, JSON, CSV, quiet formats
@@ -299,6 +300,55 @@ skill-trading twap -e orderly -s NEARUSDT --buy --budget 1000 --hours 24 --dry-r
 
 TWAP fetches the current price each interval and places a market order for `slice_usd / price` units. Skipped slices (API errors, zero qty) are logged and execution continues. Summary printed at completion showing total deployed, total qty, and average price.
 
+### Agentic Loop Trading
+
+The CLI supports two modes for time-based strategies:
+
+#### Mode 1 — Unattended (CLI owns the loop)
+
+The `twap` command runs a full internal loop — it places all slices, sleeps between them, and finishes. Set it and walk away. Crash recovery state is written after every fill.
+
+```bash
+skill-trading twap -e orderly -s NEARUSDT --buy --budget 200 --hours 1
+# Resumes from last completed slice if interrupted:
+skill-trading twap -e orderly -s NEARUSDT --buy --budget 200 --hours 1 --resume
+```
+
+#### Mode 2 — Agentic (Agent owns the loop)
+
+Use `twap-slice` — a single atomic market order for a fixed USD amount — combined with Claude Code's built-in `/loop` scheduler. The agent places one slice per tick, reads every result, and can react between fills.
+
+```bash
+# One slice, one call:
+skill-trading twap-slice -e orderly -s NEARUSDT --buy --amount 15 --decimals 0 --label "1/13"
+# Output: SLICE [1/13]  NEARUSDT BUY  Price: $1.1997  Qty: 12  Cost: ~$15.00  Order: 20975495013
+```
+
+With Claude Code's `/loop`:
+```
+/loop 5m: place one NEARUSDT buy slice of $15 using twap-slice, track total deployed, stop at $200
+```
+
+On each tick Claude places one slice, sees the price and fill, updates its running total, and cancels the loop when the budget is exhausted. The agent is never blind.
+
+**When to use which:**
+
+| Scenario | Use |
+|----------|-----|
+| Overnight unattended TWAP | `twap` (built-in loop) |
+| Active session, want visibility | `/loop` + `twap-slice` |
+| Trailing stop while you watch | `/loop` + `position get` + `risk sl` |
+| Trailing stop while you sleep | `risk trail-watch` |
+
+**`/loop` reference:**
+- Built into Claude Code — minimum 1 minute interval, default 10 minutes
+- Up to 50 simultaneous loops per session, auto-expires after 3 days
+- Stop with: "cancel the loop" or exit the session
+
+See `skills/skill-loop-trading/SKILL.md` for the full agent loop protocol.
+
+---
+
 ### Authentication
 
 ```bash
@@ -465,17 +515,19 @@ rust-cli-ttc-api/
 
 ## Skills
 
-This project ships two [agentskills.io](https://agentskills.io) compatible skills:
+This project ships six [agentskills.io](https://agentskills.io) compatible skills:
 
-### skill-trading
+| Skill | Purpose |
+|-------|---------|
+| **skill-trading** | Core safe-trading protocol: pre-order checklists, order placement rules, output interpretation |
+| **skill-shark** | Signal-driven bracketed trade setup (entry + TP1 + TP2), requires R/R ≥ 2.0 |
+| **skill-twap** | TWAP execution guide: calculations, checklist, output interpretation |
+| **skill-loop-trading** | Agent-controlled loop trading via `/loop` + `twap-slice` — agent owns the loop |
+| **skill-market-overview** | BTC/ETH trend + funding sentiment + OI distribution briefing |
+| **skill-momentum** | Finds 10%+ movers with volume, scans for signals |
+| **skill-signal-patrol** | Scans a fixed watchlist for HIGH confidence R/R ≥ 3.0 setups |
 
-Teaches an AI agent how to safely use this CLI — pre-order checklists, order placement rules, balance validation, and all available commands.
-
-### skill-shark
-
-A signal-driven trade setup strategy. The agent scans a market using the TTC Scanner, checks that R/R ≥ 2.0, then sizes and places a bracketed order (entry + TP1 + TP2). If R/R is too low, it hunts for a better market via open interest or momentum filters.
-
-The compiled binary at `skills/skill-trading/scripts/skill-trading` is kept up to date by `make release`. To distribute the skill, share the `skills/skill-trading/` folder — the binary is self-contained.
+The compiled binary at `skills/skill-trading/scripts/skill-trading` is kept up to date by `make release`. Each skill folder is self-contained and shareable.
 
 ---
 

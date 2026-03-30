@@ -11,3 +11,4 @@ pub mod config;
 pub mod login;
 pub mod register;
 pub mod twap;
+pub mod twap_slice;

@@ -11,6 +11,7 @@ default_size = 10.0
 default_leverage = 10
 confirm_orders = true
 dry_run = false
+min_usd_entry = 15.0  # Minimum USD notional per TWAP slice
 
 [output]
 format = "table"

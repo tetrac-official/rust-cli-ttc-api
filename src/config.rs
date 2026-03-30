@@ -70,6 +70,13 @@ pub struct TradingConfig {
     pub default_leverage: u32,
     pub confirm_orders: bool,
     pub dry_run: bool,
+    /// Minimum USD notional per order slice (used by TWAP to auto-calculate slice count)
+    #[serde(default = "TradingConfig::default_min_usd_entry")]
+    pub min_usd_entry: f64,
+}
+
+impl TradingConfig {
+    fn default_min_usd_entry() -> f64 { 15.0 }
 }
 
 impl Default for TradingConfig {
@@ -79,6 +86,7 @@ impl Default for TradingConfig {
             default_leverage: 10,
             confirm_orders: true,
             dry_run: false,
+            min_usd_entry: Self::default_min_usd_entry(),
         }
     }
 }

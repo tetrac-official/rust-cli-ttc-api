@@ -160,6 +160,7 @@ async fn main() -> Result<()> {
         cli::Commands::Login(cmd) => commands::login::execute(cmd, &settings).await,
         cli::Commands::Register(cmd) => commands::register::execute(cmd, &settings).await,
         cli::Commands::Twap(cmd) => commands::twap::execute(cmd, &settings).await,
+        cli::Commands::TwapSlice(cmd) => commands::twap_slice::execute(cmd, &settings).await,
     };
 
     // Handle errors
