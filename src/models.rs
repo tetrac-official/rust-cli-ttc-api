@@ -520,6 +520,23 @@ pub struct VolumeSnapshotMarket {
 pub struct ScannerResult {
     pub symbol: String,
     pub signal: ScanSignal,
+    #[serde(default)]
+    pub scans: Vec<ScanItem>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScanItem {
+    pub price_time_ratio: f64,
+    pub momentum: ScanMomentum,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScanMomentum {
+    pub rise_per_bar: f64,
+    pub avg_range: f64,
+    pub trend_direction: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -529,10 +546,10 @@ pub struct ScanSignal {
     pub strength: f64,
     pub confidence: String,
     pub entry: f64,
-    pub stop_loss: f64,
-    pub take_profit1: f64,
-    pub take_profit2: f64,
-    pub take_profit3: f64,
-    pub risk_reward_ratio: f64,
+    pub stop_loss: Option<f64>,
+    pub take_profit1: Option<f64>,
+    pub take_profit2: Option<f64>,
+    pub take_profit3: Option<f64>,
+    pub risk_reward_ratio: Option<f64>,
     pub reasoning: String,
 }

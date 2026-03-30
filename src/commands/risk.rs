@@ -8,12 +8,14 @@ use crate::error::{Result, TtcError};
 use crate::models::*;
 use crate::output::{OutputFormat, Printer};
 use tracing::info;
+use std::time::Duration;
 
 pub async fn execute(cmd: RiskCommands, settings: &AppConfig, format: OutputFormat) -> Result<()> {
     match cmd.command {
         RiskSubcommands::Sl(args) => set_stop_loss(args, settings, format).await,
         RiskSubcommands::Tp(args) => set_take_profit(args, settings, format).await,
         RiskSubcommands::Trail(args) => set_trailing_stop(args, settings, format).await,
+        RiskSubcommands::TrailWatch(args) => trail_watch(args, settings, format).await,
     }
 }
 
@@ -205,13 +207,132 @@ async fn set_trailing_stop(args: RiskTrailingStopArgs, settings: &AppConfig, for
     let result = client.place_stop_order(&args.exchange, params, credentials).await?;
 
     printer.success(&format!(
-        "Trailing stop set for {} {} position (trail: {:.2}%, initial stop: {:.2})",
+        "Trailing stop set for {} {} position (trail: {:.2}%, initial stop: {:.4})",
         args.symbol,
         position.position_side,
         args.distance,
         initial_stop
     ));
     printer.print(&result);
+
+    Ok(())
+}
+
+async fn trail_watch(args: RiskTrailWatchArgs, settings: &AppConfig, _format: OutputFormat) -> Result<()> {
+    let client = Client::new(settings)?;
+    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+
+    println!();
+    println!("  Trail Watch — {} on {}", args.symbol, args.exchange);
+    println!("  Trail:    {:.2}%", args.trail_pct);
+    println!("  Interval: {}s", args.interval);
+    println!("  Waiting for position to enter profit before activating...");
+    println!("  Press Ctrl+C to stop.");
+    println!();
+
+    let mut peak: Option<f64> = None;
+    let mut current_stop: Option<f64> = None;
+    let mut active = false;
+
+    loop {
+        let positions = client
+            .get_positions(&args.exchange, Some(&args.symbol), credentials.clone())
+            .await?;
+
+        let position = find_position(&positions, args.position_side);
+
+        match position {
+            None => {
+                println!("  [trail-watch] No open {} position found — stopping.", args.symbol);
+                break;
+            }
+            Some(pos) => {
+                let mark = pos.mark_price;
+                let entry = pos.entry_price;
+                let pnl = pos.unrealized_pnl;
+                let pos_side = parse_position_side(&pos.position_side);
+
+                if !active {
+                    if pnl > 0.0 {
+                        active = true;
+                        peak = Some(mark);
+                        println!("  [trail-watch] Position entered profit at ${:.4} — activating trail.", mark);
+                    } else {
+                        let gap = ((entry - mark) / entry * 100.0).abs();
+                        println!("  [trail-watch] Waiting for profit. Mark: ${:.4}  Entry: ${:.4}  PnL: ${:.2}  Gap: {:.2}%", mark, entry, pnl, gap);
+                    }
+                }
+
+                if active {
+                    let p = peak.get_or_insert(mark);
+                    // Update peak
+                    match pos_side {
+                        PositionSide::Long | PositionSide::Both => {
+                            if mark > *p { *p = mark; }
+                        }
+                        PositionSide::Short => {
+                            if mark < *p { *p = mark; }
+                        }
+                    }
+                    let p = *p;
+
+                    let new_stop = match pos_side {
+                        PositionSide::Long | PositionSide::Both => p * (1.0 - args.trail_pct / 100.0),
+                        PositionSide::Short => p * (1.0 + args.trail_pct / 100.0),
+                    };
+
+                    let should_update = match current_stop {
+                        None => true,
+                        Some(prev) => match pos_side {
+                            PositionSide::Long | PositionSide::Both => new_stop > prev,
+                            PositionSide::Short => new_stop < prev,
+                        },
+                    };
+
+                    println!(
+                        "  [trail-watch] Mark: ${:.4}  Peak: ${:.4}  Trail stop: ${:.4}  PnL: ${:.2}{}",
+                        mark, p, new_stop, pnl,
+                        if should_update && current_stop.is_some() { "  → updating stop" } else { "" }
+                    );
+
+                    if should_update {
+                        // Cancel existing stop orders and place updated one
+                        let _ = client.cancel_all_orders(&args.exchange, Some(&args.symbol), credentials.clone()).await;
+
+                        let stop_side = match pos_side {
+                            PositionSide::Long | PositionSide::Both => OrderSide::Sell,
+                            PositionSide::Short => OrderSide::Buy,
+                        };
+
+                        let stop_params = StopOrderParams {
+                            symbol: args.symbol.clone(),
+                            side: stop_side,
+                            quantity: pos.size.abs(),
+                            stop_price: new_stop,
+                            position_side: Some(pos_side),
+                            trigger_type: Some(TriggerType::ByMarkPrice),
+                            reduce_only: Some(true),
+                            client_order_id: None,
+                            price: None,
+                            close_position: None,
+                        };
+
+                        match client.place_stop_order(&args.exchange, stop_params, credentials.clone()).await {
+                            Ok(_) => {
+                                current_stop = Some(new_stop);
+                                println!("  [trail-watch] Stop order placed at ${:.4}", new_stop);
+                            }
+                            Err(e) => {
+                                println!("  [trail-watch] Warning: failed to place stop: {}", e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        tokio::time::sleep(Duration::from_secs(args.interval)).await;
+    }
 
     Ok(())
 }

@@ -22,6 +22,8 @@ Place orders, manage positions, scan markets, and control risk. Designed for AI 
 - **Account Operations** — Balance, leverage, margin mode, hedge mode
 - **Market Data** — Cross-exchange tickers, funding rates, open interest, volume snapshots
 - **TTC Scanner** — Technical analysis signal with entry, stop-loss, and take-profit levels
+- **TWAP Builder** — Time-weighted average price execution: split a budget into equal slices over a time window
+- **Trailing Stop Watch** — Polling loop that activates a trailing stop once a position enters profit
 - **Dry-Run Mode** — Preview all mutations without executing (`--dry-run`)
 - **Rich Output** — Table, JSON, CSV, quiet formats
 - **Agent Skills** — Packaged as installable skills for Claude Code and compatible AI agents
@@ -205,15 +207,23 @@ skill-trading market best-bid-ask -e phemex -s BTCUSDT
 #### Scanner Output
 
 ```
-BTCUSDT / 4h — LONG HIGH  (strength 72/100)
-Entry:     $65839.4000
-Stop Loss: $65439.1599  (0.61% risk)
-TP1:       $68258.7399  (+3.67%)
-TP2:       $76717.4798  (+16.52%)
-TP3:       $93634.9596  (+42.22%)
-R/R:       6.04x
-Note:      bull composite 72.4 (score 54, R/R 6.04) vs opposite 44.7
+NEARUSDT / 4h — SHORT HIGH  (strength 86/100)
+Entry:     $1.1720
+Gann unit: $0.002344/bar (1x1)  |  Momentum: -0.003988/bar (down)  |  Avg range: $0.021650/bar
+Stop Loss: $1.2033  (2.67% risk)
+TP1:       $0.8874  (-24.27%)
+TP2:       $0.5028  (-57.10%)
+TP3:       $0.1182  (-89.91%)
+R/R:       8.81x
+Note:      bear composite 85.6 (score 76, R/R 8.81) vs opposite 33.1
 ```
+
+The **Gann unit** line shows:
+- `Gann unit` — price movement per bar at the 1x1 fan angle (the base unit for all fan lines)
+- `Momentum` — actual average price change per bar over the last 20 bars (negative = downtrend)
+- `Avg range` — average bar range (high - low) over 20 bars
+
+When a signal is `NEUTRAL`, stop loss and TP levels are omitted — the API returns no levels for neutral signals.
 
 ### Risk Management
 
@@ -224,9 +234,30 @@ skill-trading risk sl -e phemex -s BTCUSDT --stop-price 92000
 # Set take profit
 skill-trading risk tp -e phemex -s BTCUSDT --tp-price 100000
 
-# Set trailing stop
+# Set trailing stop (one-shot, places stop at distance% from mark price)
 skill-trading risk trail -e phemex -s BTCUSDT --distance 5
+
+# Trail watch — polling loop that activates once position enters profit,
+# then trails a stop dynamically as price moves in your favour
+skill-trading risk trail-watch -e orderly -s NEARUSDT --trail-pct 2 --interval 120
 ```
+
+#### Trail Watch
+
+`trail-watch` runs a foreground polling loop — no websocket required:
+
+1. **Waiting** — polls every `--interval` seconds. Prints mark price vs entry until PnL turns positive.
+2. **Activation** — once position enters profit, records peak price and places first stop at `peak × (1 - trail_pct%)`.
+3. **Trailing** — each poll: if price sets a new peak, cancels old stop and places a new one at the updated trail level. Stop only moves in your favour — never backwards.
+4. **Exit** — loop stops automatically when the position closes (filled stop, manual close, liquidation).
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--trail-pct` | `2.0` | Trail distance as % of peak price |
+| `--interval` | `30` | Poll interval in seconds |
+| `--position-side` | auto | Filter: `long`, `short`, `both` |
+
+Press `Ctrl+C` to stop watching.
 
 ### Configuration
 
@@ -249,6 +280,24 @@ skill-trading config add-exchange phemex --api-key KEY --api-secret SECRET
 # Remove exchange credentials
 skill-trading config rm-exchange phemex
 ```
+
+### TWAP
+
+```bash
+# Buy $1000 of NEAR over 24 hours (48 slices × $20.83, every 30 min)
+skill-trading twap -e orderly -s NEARUSDT --buy --budget 1000 --hours 24
+
+# Sell $500 of SOL over 4 hours, every 15 minutes
+skill-trading twap -e orderly -s SOLUSDT --sell --budget 500 --hours 4 --interval 15
+
+# 10 fixed slices over 6 hours (interval auto-calculated to 36 min)
+skill-trading twap -e orderly -s BTCUSDT --buy --budget 1000 --hours 6 --slices 10
+
+# Always dry-run first
+skill-trading twap -e orderly -s NEARUSDT --buy --budget 1000 --hours 24 --dry-run
+```
+
+TWAP fetches the current price each interval and places a market order for `slice_usd / price` units. Skipped slices (API errors, zero qty) are logged and execution continues. Summary printed at completion showing total deployed, total qty, and average price.
 
 ### Authentication
 

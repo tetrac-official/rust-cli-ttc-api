@@ -61,12 +61,22 @@ Config file is discovered in order: `--config` flag → `TTC_CONFIG` env var →
 | `account` | `acct` | Balance, leverage, margin mode, hedge mode |
 | `orders` | `o` | Bulk order get/cancel-all |
 | `market` | `m` | Tickers, funding rates, OI, volume snapshot, TTC scanner |
-| `risk` | — | Stop-loss (`sl`), take-profit (`tp`), trailing stop (`trail`) |
+| `risk` | — | Stop-loss (`sl`), take-profit (`tp`), trailing stop (`trail`), polling trail watcher (`trail-watch`) |
 | `config` | — | Init, show, path, set-default, add/rm exchange |
 | `login` | `auth` | TTC Box login |
 | `register` | — | TTC Box registration + local wallet generation |
+| `twap` | — | Time-weighted average price position builder (polling loop, market orders) |
 
 Market data commands (`hybrid-tickers`, `funding-rates`, `open-interest`, `volume-snapshot`, `scanner`) require no API key.
+
+### Scanner output notes
+- All prices display 4 decimal places throughout the CLI.
+- Scanner includes a **Gann unit** line: `$X/bar (1x1) | Momentum: ±Y/bar (direction) | Avg range: $Z/bar`. Multiply the Gann unit by the fan ratio (2, 3, 4…) to get the slope of steeper fan lines.
+- When signal is `NEUTRAL`, stop loss and TP levels are `null` from the API and omitted from output — this is expected, not a bug.
+- Descending Gann fan lines from a high pivot can project below zero after many bars — mathematically valid, not an error.
+
+### `risk trail-watch`
+Polling trailing stop — activates once position enters profit, then trails stop at `peak × (1 - trail_pct%)` for longs, `peak × (1 + trail_pct%)` for shorts. Reads actual position side from the exchange and places a SELL stop for long positions, BUY stop for short positions, always `reduce_only`. Cancels and replaces stop only when the new level improves on the previous one. Stops automatically when position closes. Flags: `--trail-pct` (default 2.0%), `--interval` (default 30s).
 
 ## Skills
 

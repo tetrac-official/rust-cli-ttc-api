@@ -202,14 +202,31 @@ async fn get_scanner(args: MarketScannerArgs, settings: &AppConfig, _format: Out
     println!();
     println!("  {} / {} — {} {}  (strength {}/100)", result.symbol, args.timeframe, sig.direction, sig.confidence, sig.strength as u32);
     println!("  Entry:     ${:.4}", sig.entry);
-    println!("  Stop Loss: ${:.4}  ({:.2}% risk)",
-        sig.stop_loss,
-        ((sig.stop_loss - sig.entry) / sig.entry * 100.0).abs()
-    );
-    println!("  TP1:       ${:.4}  ({:+.2}%)", sig.take_profit1, (sig.take_profit1 - sig.entry) / sig.entry * 100.0);
-    println!("  TP2:       ${:.4}  ({:+.2}%)", sig.take_profit2, (sig.take_profit2 - sig.entry) / sig.entry * 100.0);
-    println!("  TP3:       ${:.4}  ({:+.2}%)", sig.take_profit3, (sig.take_profit3 - sig.entry) / sig.entry * 100.0);
-    println!("  R/R:       {:.2}x", sig.risk_reward_ratio);
+    if let Some(scan) = result.scans.first() {
+        let m = &scan.momentum;
+        let sign = if m.rise_per_bar >= 0.0 { "+" } else { "" };
+        println!(
+            "  Gann unit: ${:.6}/bar (1x1)  |  Momentum: {}{:.6}/bar ({})  |  Avg range: ${:.6}/bar",
+            scan.price_time_ratio, sign, m.rise_per_bar, m.trend_direction, m.avg_range
+        );
+    }
+    if let Some(sl) = sig.stop_loss {
+        println!("  Stop Loss: ${:.4}  ({:.2}% risk)", sl, ((sl - sig.entry) / sig.entry * 100.0).abs());
+    } else {
+        println!("  Stop Loss: n/a");
+    }
+    if let Some(tp1) = sig.take_profit1 {
+        println!("  TP1:       ${:.4}  ({:+.2}%)", tp1, (tp1 - sig.entry) / sig.entry * 100.0);
+    }
+    if let Some(tp2) = sig.take_profit2 {
+        println!("  TP2:       ${:.4}  ({:+.2}%)", tp2, (tp2 - sig.entry) / sig.entry * 100.0);
+    }
+    if let Some(tp3) = sig.take_profit3 {
+        println!("  TP3:       ${:.4}  ({:+.2}%)", tp3, (tp3 - sig.entry) / sig.entry * 100.0);
+    }
+    if let Some(rr) = sig.risk_reward_ratio {
+        println!("  R/R:       {:.2}x", rr);
+    }
     println!("  Note:      {}", sig.reasoning);
     println!();
     Ok(())

@@ -41,6 +41,9 @@ pub enum Commands {
 
     /// Register a new TTC Box account with email and passkey
     Register(RegisterArgs),
+
+    /// Time-Weighted Average Price position builder
+    Twap(TwapArgs),
 }
 
 // ============================================================================
@@ -592,8 +595,11 @@ pub enum RiskSubcommands {
     /// Set take profit for a position
     Tp(RiskTakeProfitArgs),
 
-    /// Set trailing stop
+    /// Set trailing stop (one-shot)
     Trail(RiskTrailingStopArgs),
+
+    /// Watch a position and trail a stop once it enters profit (polling loop)
+    TrailWatch(RiskTrailWatchArgs),
 }
 
 #[derive(Debug, Args)]
@@ -673,6 +679,41 @@ pub struct RiskTrailingStopArgs {
     pub distance: f64,
 
     /// Position side (long, short)
+    #[arg(long, value_enum)]
+    pub position_side: Option<PositionSideArg>,
+
+    /// Exchange API key
+    #[arg(long, env = "EXCHANGE_API_KEY")]
+    pub api_key: Option<String>,
+
+    /// Exchange API secret
+    #[arg(long, env = "EXCHANGE_API_SECRET")]
+    pub api_secret: Option<String>,
+
+    /// Exchange API passphrase (required by OKX, KuCoin, Orderly, Bitget, BloFin)
+    #[arg(long, env = "EXCHANGE_API_PASSPHRASE")]
+    pub passphrase: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct RiskTrailWatchArgs {
+    /// Exchange name
+    #[arg(short, long, env = "TTC_EXCHANGE")]
+    pub exchange: String,
+
+    /// Trading symbol
+    #[arg(short, long)]
+    pub symbol: String,
+
+    /// Trail distance as a percentage of peak price (e.g. 2 = 2%)
+    #[arg(long, default_value = "2.0")]
+    pub trail_pct: f64,
+
+    /// Poll interval in seconds
+    #[arg(long, default_value = "30")]
+    pub interval: u64,
+
+    /// Position side filter (long, short)
     #[arg(long, value_enum)]
     pub position_side: Option<PositionSideArg>,
 
@@ -1063,6 +1104,61 @@ pub struct RegisterArgs {
     /// Email address (auto-generated if not provided)
     #[arg(long, env = "TTC_EMAIL")]
     pub email: Option<String>,
+}
+
+// ============================================================================
+// TWAP Args
+// ============================================================================
+
+#[derive(Debug, Args)]
+pub struct TwapArgs {
+    /// Exchange name
+    #[arg(short, long, env = "TTC_EXCHANGE")]
+    pub exchange: String,
+
+    /// Trading symbol (e.g. NEARUSDT)
+    #[arg(short, long)]
+    pub symbol: String,
+
+    /// Order side: buy
+    #[arg(long, conflicts_with = "sell")]
+    pub buy: bool,
+
+    /// Order side: sell
+    #[arg(long, conflicts_with = "buy")]
+    pub sell: bool,
+
+    /// Total USD budget to deploy
+    #[arg(long)]
+    pub budget: f64,
+
+    /// Duration to spread orders over, in hours (e.g. 24)
+    #[arg(long)]
+    pub hours: f64,
+
+    /// Minutes between each order slice (default: 30)
+    #[arg(long, default_value = "30")]
+    pub interval: u64,
+
+    /// Override number of slices (overrides --interval)
+    #[arg(long)]
+    pub slices: Option<u32>,
+
+    /// Quantity decimal precision (0 = integer, e.g. NEAR; 3 = BTC/ETH style)
+    #[arg(long, default_value = "0")]
+    pub decimals: u32,
+
+    /// Exchange API key
+    #[arg(long, env = "EXCHANGE_API_KEY")]
+    pub api_key: Option<String>,
+
+    /// Exchange API secret
+    #[arg(long, env = "EXCHANGE_API_SECRET")]
+    pub api_secret: Option<String>,
+
+    /// Exchange API passphrase (required by OKX, KuCoin, Orderly, Bitget, BloFin)
+    #[arg(long, env = "EXCHANGE_API_PASSPHRASE")]
+    pub passphrase: Option<String>,
 }
 
 impl ValueEnum for OutputFormat {

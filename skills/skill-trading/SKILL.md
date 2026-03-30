@@ -61,9 +61,10 @@ required_margin = (quantity × price) / leverage
 ### Step 4 — Check open orders
 
 ```
-skill-trading order open
+skill-trading orders get
 ```
 
+- Always fetch live — never assume orders from a previous step still exist. They may have been filled, cancelled, or expired.
 - If there are existing orders on the same symbol/side, flag potential duplicates.
 - Ask the user to confirm before adding another order.
 
@@ -161,21 +162,35 @@ Shows 24h volume, open interest, and TVL per exchange (CEX + DEX).
 ```
 skill-trading market scanner --symbol <SYM> [--timeframe 1h] [--bars 1000] [--swing-strength 10]
 ```
-Runs technical analysis on a symbol. Returns the signal block:
-- **Direction** — LONG or SHORT
+Runs Gann fan technical analysis on a symbol. Output:
+
+```
+NEARUSDT / 1h — LONG HIGH  (strength 80/100)
+Entry:     $1.1700
+Gann unit: $0.000558/bar (1x1)  |  Momentum: -0.000477/bar (down)  |  Avg range: $0.009500/bar
+Stop Loss: $1.1697  (0.19% risk)
+TP1:       $1.3885  (+18.47%)
+TP2:       $1.8259  (+55.80%)
+TP3:       $2.2634  (+93.12%)
+R/R:       95.61x
+Note:      bull composite 79.6 (score 66, R/R 95.61) vs opposite 29.7
+```
+
+Fields:
+- **Direction** — LONG, SHORT, or NEUTRAL
 - **Confidence** — HIGH / MEDIUM / LOW
-- **Entry** — limit order price
-- **Stop Loss** — with % risk from entry
-- **TP1 / TP2 / TP3** — take-profit targets with % gain from entry
+- **Gann unit** — price per bar at the 1x1 fan angle; multiply by ratio (2, 3, 4…) to get steeper fan line slopes
+- **Momentum** — actual avg price change/bar over last 20 bars (negative = downtrend)
+- **Avg range** — avg bar range over 20 bars; useful for sizing stops
+- **Stop Loss / TP1-3** — omitted when signal is NEUTRAL (API returns null levels)
 - **R/R ratio** — risk/reward multiplier
 
 Parameters:
-- `--timeframe` — kline interval: `1m`, `5m`, `15m`, `1h`, `4h`, `1d` (default: `1h`)
-- `--bars` — number of bars to analyze, max 1000 (default: 1000)
+- `--timeframe` — `1m`, `5m`, `15m`, `1h`, `4h`, `1d` (default: `1h`)
+- `--bars` — bars to analyze, max 1000 (default: 1000)
 - `--swing-strength` — lookback for swing detection (default: 10)
 
-> **Usage tip:** Run this before opening a position to get an objective entry/exit framework.
-> The signal includes a ready-to-use stop-loss and three take-profit targets.
+> **Gann fan note:** Descending fan lines from a high pivot can project below zero after many bars — this is mathematically correct, not a bug. Use the Gann unit and momentum to assess whether the move is realistic given the timeframe.
 
 ### Tickers (exchange-specific)
 ```
@@ -235,6 +250,31 @@ Together these give a full picture of margin usage and risk.
 
 ---
 
+## RISK MANAGEMENT COMMANDS
+
+### Stop Loss / Take Profit (one-shot)
+```
+skill-trading risk sl -e <exchange> -s <SYMBOL> --stop-price <price>
+skill-trading risk tp -e <exchange> -s <SYMBOL> --tp-price <price>
+```
+Places a single stop/TP order against the current open position. Reduce-only, triggered by mark price.
+
+### Trailing Stop Watch (polling loop)
+```
+skill-trading risk trail-watch -e <exchange> -s <SYMBOL> --trail-pct <pct> --interval <seconds>
+```
+Runs a foreground loop that:
+1. **Waits** until the position enters profit (PnL > 0)
+2. **Activates** — records peak price, places first stop at `peak × (1 - trail_pct%)`
+3. **Trails** — each poll, if price sets a new peak, cancels old stop and places a new one
+4. **Exits** automatically when position closes
+
+Default: `--trail-pct 2.0`, `--interval 30`. Press `Ctrl+C` to stop.
+
+> Use this after entering a position — it watches passively and only activates once you're in profit.
+
+---
+
 ## WHAT NOT TO DO
 
 - Do not place an order immediately after being asked — always run the checklist first.
@@ -242,3 +282,6 @@ Together these give a full picture of margin usage and risk.
 - Do not guess the current price — always fetch it.
 - Do not place duplicate orders without confirming with the user.
 - Do not use market orders unless the user explicitly requests it — prefer limit orders.
+- **Do not assume orders still exist** — always call `orders get` before referencing open orders. Orders may have been filled, cancelled, or expired since they were last placed.
+- **Do not assume positions are unchanged** — always call `position get` for the current state before making decisions based on a position.
+- **Do not assume balance is the same** — always re-fetch before placing new orders, especially after fills or PnL changes.
