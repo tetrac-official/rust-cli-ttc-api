@@ -117,6 +117,27 @@ A **negative available** means the account is over-committed. No new orders can 
 
 If `mark_price` is approaching `liq`, warn the user immediately.
 
+### Detailed PnL Breakdown
+
+For a full breakdown of a position including margin used, % from entry, and liquidation distance:
+
+```
+skill-trading position pnl -e <exchange> -s <SYMBOL>
+```
+
+Output:
+```
+── NEARUSDT BUY 10x ─────────────────────────────────
+Size:           1160 units  ($1356.62 notional)
+Entry price:    $1.2425
+Mark price:     $1.1695  (-5.88% from entry)
+Unrealized PnL: -52.17 USDT  (-5.88%)
+Margin used:    $135.66  (10x leverage, cross mode)
+Liquidation:    $1.0816  (7.52% away)
+```
+
+Use `position pnl` when you need to assess risk (liquidation distance) or explain the position to the user in detail. Use `position get` for a quick summary.
+
 ---
 
 ## MARKET DATA COMMANDS
@@ -250,6 +271,53 @@ Together these give a full picture of margin usage and risk.
 
 ---
 
+## DCA LADDER COMMAND
+
+Places multiple limit orders stepping away from the current price. Levels and per-level size are auto-calculated from your total amount and the `min_usd_entry` in config (default $15).
+
+```
+skill-trading order dca -e <exchange> -s <SYMBOL> --buy|--sell --amount <USD> -d <distance%>
+```
+
+| Flag | Description |
+|------|-------------|
+| `--amount` | Total USD notional for the entire ladder |
+| `-d, --distance` | % gap between each level (e.g. `1` = 1% per step) |
+| `--start-price` | Override base price (defaults to current last price) |
+| `--price-decimals` | Decimal places for limit prices (default: 4) |
+| `--qty-decimals` | Decimal places for quantities (default: 0 = integer) |
+
+**Calculation:**
+```
+levels     = floor(amount / min_usd_entry)
+level_usd  = amount / levels
+price_n    = base_price × (1 - distance%)^n   (buy: steps down)
+           = base_price × (1 + distance%)^n   (sell: steps up)
+qty_n      = floor(level_usd / price_n)
+```
+
+**Example — $150 across 10 levels, 1% apart:**
+```
+skill-trading order dca -e orderly -s NEARUSDT --buy --amount 150 -d 1 --dry-run
+
+  DCA Ladder — NEARUSDT BUY on orderly
+  Amount:  $150.00 total  |  Levels: 10  |  Per level: $15.00
+  Base:    $1.1667  |  Step: 1.00% per level  |  Min entry: $15.00
+  ─────────────────────────────────────────────────────
+  Level 1/10   $1.1667  Qty: 12  Cost: ~$15.00
+  Level 2/10   $1.1550  Qty: 12  Cost: ~$15.00
+  ...
+  Level 10/10  $1.0658  Qty: 14  Cost: ~$15.00
+```
+
+**Rules:**
+- Always `--dry-run` first to confirm levels and prices before going live
+- Check available balance — all levels are placed as open limit orders, locking margin
+- Use `orders get` after placing to confirm all levels were accepted
+- Cancel with `orders cancel-all` if you want to clear the ladder
+
+---
+
 ## RISK MANAGEMENT COMMANDS
 
 ### Stop Loss / Take Profit (one-shot)
@@ -272,6 +340,46 @@ Runs a foreground loop that:
 Default: `--trail-pct 2.0`, `--interval 30`. Press `Ctrl+C` to stop.
 
 > Use this after entering a position — it watches passively and only activates once you're in profit.
+
+---
+
+## PRE-LOOP SESSION CHECK
+
+Before starting any loop (`/loop`, `twap`, `trail-watch`, `portfolio summary` cycle), always verify the session is healthy:
+
+```bash
+skill-trading status
+```
+
+Output:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SKILL-TRADING STATUS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓  TTC Box API
+  ✓  Session token               VALID  23h 43m remaining
+  ✓  Exchange credentials        orderly configured
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STATUS: READY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Decision tree:**
+
+| Status | Action |
+|--------|--------|
+| READY | Proceed with loop or order placement |
+| NOT READY — session expired | Run `skill-trading login` first |
+| NOT READY — no credentials | Set `{EXCHANGE}_API_KEY` / `{EXCHANGE}_API_SECRET` in `.env` |
+| NOT READY — API unreachable | Check connectivity; retry in 30s |
+
+**Rules:**
+- If `STATUS: NOT READY`, do not start any loop or place any order.
+- Pay attention to the remaining time on the session token. If < 2h remain, warn the user to re-login soon.
+- Exit code is 0 when READY, 1 when NOT READY — usable in shell scripts as a gate.
 
 ---
 

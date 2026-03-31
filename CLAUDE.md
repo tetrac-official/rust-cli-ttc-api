@@ -56,8 +56,8 @@ Config file is discovered in order: `--config` flag → `TTC_CONFIG` env var →
 
 | Command | Aliases | Purpose |
 |---------|---------|---------|
-| `order` | — | Limit, market, stop, take-profit placement; cancel; cancel-all; list open |
-| `position` | `pos`, `positions` | Get, close, close-all |
+| `order` | — | Limit, market, stop, take-profit placement; cancel; cancel-all; list open; **DCA ladder** |
+| `position` | `pos`, `positions` | Get, close, close-all; **PnL breakdown** (`position pnl`) |
 | `account` | `acct` | Balance, leverage, margin mode, hedge mode |
 | `orders` | `o` | Bulk order get/cancel-all |
 | `market` | `m` | Tickers, funding rates, OI, volume snapshot, TTC scanner |
@@ -65,8 +65,10 @@ Config file is discovered in order: `--config` flag → `TTC_CONFIG` env var →
 | `config` | — | Init, show, path, set-default, add/rm exchange |
 | `login` | `auth` | TTC Box login |
 | `register` | — | TTC Box registration + local wallet generation |
+| `portfolio` | `port`, `pf` | Health report: balance + positions → HEALTHY/WATCH/DANGER status with risk warnings |
 | `twap` | — | Time-weighted average price position builder (polling loop, market orders, crash recovery) |
 | `twap-slice` | — | **Atomic single slice** — one market order for a fixed USD amount. Designed for `/loop` agent-controlled runs |
+| `status` | — | Ping TTC Box API + verify session token + check exchange credentials → READY / NOT READY. Exits 1 if not ready. |
 
 Market data commands (`hybrid-tickers`, `funding-rates`, `open-interest`, `volume-snapshot`, `scanner`) require no API key.
 
@@ -111,6 +113,7 @@ The `skills/` directory contains six AI agent instruction sets (agentskills.io f
 - **skill-momentum** — Finds 10%+ movers with volume, scans for signals
 - **skill-signal-patrol** — Scans a fixed watchlist for HIGH confidence R/R ≥ 3.0 setups
 - **skill-loop-trading** — Agent-controlled loop trading via `/loop` + `twap-slice`; agent owns the loop, retains full visibility
+- **skill-portfolio-manager** — Portfolio health report (`portfolio summary`): HEALTHY/WATCH/DANGER status, margin utilization, liq distance, position risk thresholds from `[portfolio]` config
 
 `make release` compiles the binary and copies it into `skills/skill-trading/scripts/` for distribution. Each skill folder is self-contained and shareable.
 

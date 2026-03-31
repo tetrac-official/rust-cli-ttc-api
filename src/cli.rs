@@ -35,6 +35,9 @@ pub enum Commands {
     #[command(alias = "version")]
     Info,
 
+    /// Check TTC Box connectivity and session validity before starting a loop
+    Status,
+
     /// Login to TTC Box with email and passkey
     #[command(alias = "auth")]
     Login(LoginArgs),
@@ -44,6 +47,10 @@ pub enum Commands {
 
     /// Time-Weighted Average Price position builder
     Twap(TwapArgs),
+
+    /// Portfolio health report: balance + all positions aggregated into one view
+    #[command(alias = "port", alias = "pf")]
+    Portfolio(PortfolioCommands),
 
     /// Place a single TWAP slice — one market order for a fixed USD amount.
     /// Designed for agent-controlled loops via /loop. Prints result as one line.
@@ -87,6 +94,9 @@ pub enum OrderSubcommands {
     /// List open orders
     #[command(alias = "list", alias = "ls")]
     Open(OrderOpenArgs),
+
+    /// Place a DCA ladder — multiple limit orders stepping away from current price
+    Dca(OrderDcaArgs),
 }
 
 #[derive(Debug, Args)]
@@ -359,6 +369,60 @@ pub struct OrderOpenArgs {
 }
 
 // ============================================================================
+// DCA Args
+// ============================================================================
+
+#[derive(Debug, Args)]
+pub struct OrderDcaArgs {
+    /// Exchange name
+    #[arg(short, long, env = "TTC_EXCHANGE")]
+    pub exchange: String,
+
+    /// Trading symbol (e.g. NEARUSDT)
+    #[arg(short, long)]
+    pub symbol: String,
+
+    /// Order side: buy (ladder steps down) or sell (ladder steps up)
+    #[arg(long, conflicts_with = "sell")]
+    pub buy: bool,
+
+    #[arg(long, conflicts_with = "buy")]
+    pub sell: bool,
+
+    /// Total USD notional to allocate across all levels
+    #[arg(long)]
+    pub amount: f64,
+
+    /// Percentage distance between each level (e.g. 1.0 = 1% apart)
+    #[arg(short = 'd', long)]
+    pub distance: f64,
+
+    /// Starting price (defaults to current last price if not specified)
+    #[arg(long)]
+    pub start_price: Option<f64>,
+
+    /// Price decimal places for rounding limit prices (e.g. 4 for NEAR = $1.1234)
+    #[arg(long, default_value = "4")]
+    pub price_decimals: u32,
+
+    /// Quantity decimal places for rounding order size (0 = integer like NEAR)
+    #[arg(long, default_value = "0")]
+    pub qty_decimals: u32,
+
+    /// Exchange API key
+    #[arg(long, env = "EXCHANGE_API_KEY")]
+    pub api_key: Option<String>,
+
+    /// Exchange API secret
+    #[arg(long, env = "EXCHANGE_API_SECRET")]
+    pub api_secret: Option<String>,
+
+    /// Exchange API passphrase
+    #[arg(long, env = "EXCHANGE_API_PASSPHRASE")]
+    pub passphrase: Option<String>,
+}
+
+// ============================================================================
 // Position Commands
 // ============================================================================
 
@@ -373,6 +437,9 @@ pub enum PositionSubcommands {
     /// List all positions
     #[command(alias = "ls", alias = "list")]
     Get(PositionGetArgs),
+
+    /// Detailed PnL breakdown for one or all positions
+    Pnl(PositionGetArgs),
 
     /// Close a position (market order)
     #[command(alias = "exit")]
@@ -1218,6 +1285,41 @@ pub struct TwapSliceArgs {
     pub api_secret: Option<String>,
 
     /// Exchange API passphrase
+    #[arg(long, env = "EXCHANGE_API_PASSPHRASE")]
+    pub passphrase: Option<String>,
+}
+
+// ============================================================================
+// Portfolio Commands
+// ============================================================================
+
+#[derive(Debug, Args)]
+pub struct PortfolioCommands {
+    #[command(subcommand)]
+    pub command: PortfolioSubcommands,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum PortfolioSubcommands {
+    /// Aggregate balance + all positions into a single health report
+    Summary(PortfolioSummaryArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct PortfolioSummaryArgs {
+    /// Exchange name
+    #[arg(short, long, env = "TTC_EXCHANGE")]
+    pub exchange: String,
+
+    /// Exchange API key
+    #[arg(long, env = "EXCHANGE_API_KEY")]
+    pub api_key: Option<String>,
+
+    /// Exchange API secret
+    #[arg(long, env = "EXCHANGE_API_SECRET")]
+    pub api_secret: Option<String>,
+
+    /// Exchange API passphrase (required by OKX, KuCoin, Orderly, Bitget, BloFin)
     #[arg(long, env = "EXCHANGE_API_PASSPHRASE")]
     pub passphrase: Option<String>,
 }
