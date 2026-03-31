@@ -18,7 +18,10 @@ Place orders, manage positions, scan markets, and control risk. Designed for AI 
 - **Client-Side Wallet Generation** — Solana, Orderly, and EVM wallets generated and encrypted locally; private keys never sent in plaintext
 - **15+ Exchanges** — Orderly, Phemex, Bybit, Binance, OKX, Bitget, BloFin, KuCoin, Hyperliquid, AsterDEX, BingX, and more
 - **Full Order Management** — Limit, market, stop-loss, take-profit orders
+- **DCA Ladder** — Place a stepped grid of limit orders from current price, auto-sized from budget and min entry
 - **Position Control** — View, close, and manage positions
+- **Position PnL Breakdown** — Entry, mark price, % move, margin used, liquidation distance
+- **Portfolio Health Report** — Balance + all positions in one view: HEALTHY / WATCH / DANGER status with configurable risk thresholds
 - **Account Operations** — Balance, leverage, margin mode, hedge mode
 - **Market Data** — Cross-exchange tickers, funding rates, open interest, volume snapshots
 - **TTC Scanner** — Technical analysis signal with entry, stop-loss, and take-profit levels
@@ -27,6 +30,7 @@ Place orders, manage positions, scan markets, and control risk. Designed for AI 
 - **Trailing Stop Watch** — Polling loop that activates a trailing stop once a position enters profit
 - **Dry-Run Mode** — Preview all mutations without executing (`--dry-run`)
 - **Rich Output** — Table, JSON, CSV, quiet formats
+- **Session Status Check** — Ping API + verify session token expiry + confirm exchange credentials → READY / NOT READY before starting any loop
 - **Agent Skills** — Packaged as installable skills for Claude Code and compatible AI agents
 
 ---
@@ -147,11 +151,26 @@ skill-trading position get -e phemex
 # Filter by symbol
 skill-trading position get -e phemex -s BTCUSDT
 
+# Detailed PnL breakdown — entry, mark, % move, margin used, liquidation distance
+skill-trading position pnl -e orderly -s NEARUSDT
+
 # Close a position (market order)
 skill-trading position close -e phemex -s BTCUSDT
 
 # Close all positions
 skill-trading position close-all -e phemex
+```
+
+#### Position PnL Output
+
+```
+── NEARUSDT BUY 10x ─────────────────────────────────
+Size:           1160 units  ($1356.62 notional)
+Entry price:    $1.2425
+Mark price:     $1.1695  (-5.88% from entry)
+Unrealized PnL: -52.17 USDT  (-5.88%)
+Margin used:    $135.66  (10x leverage, cross mode)
+Liquidation:    $1.0816  (7.52% away)
 ```
 
 ### Account
@@ -282,6 +301,104 @@ skill-trading config add-exchange phemex --api-key KEY --api-secret SECRET
 skill-trading config rm-exchange phemex
 ```
 
+### Portfolio Health
+
+Aggregates balance and all positions into a single health report. Checks configurable risk thresholds and emits a `HEALTHY`, `WATCH`, or `DANGER` status.
+
+```bash
+skill-trading portfolio summary -e orderly
+
+# Aliases
+skill-trading port summary -e orderly
+skill-trading pf summary -e orderly
+```
+
+#### Output
+
+```
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PORTFOLIO SUMMARY — ORDERLY
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ACCOUNT BALANCE
+  Total:        $153.44 USDT
+  Available:    $15.88
+  Locked:       $137.56
+  Utilization:  89.7%  [WATCH — threshold 80%]
+
+  POSITIONS (1 open)
+  ───────────────────────────────────────────────────────
+  NEARUSDT  BUY 10x
+    Size:     1160    Notional: $1375.64
+    PnL:      -33.15 USDT  (-4.56%)
+    Margin:   $137.56    Liq dist: 8.88%  [DANGER — below 10%]
+
+  WARNINGS
+  [!] Margin utilization 89.7% exceeds threshold (80.0%)
+  [!] NEARUSDT liq distance 8.88% is below threshold (10.0%)
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STATUS: DANGER
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+#### Risk Thresholds (config.toml)
+
+```toml
+[portfolio]
+max_margin_utilization = 80.0   # % — warn if locked/balance > this
+min_liq_distance_pct   = 10.0   # % — warn if any liq is this close
+max_position_notional  = 5000.0 # USD — warn if single position > this
+```
+
+| Status | Condition |
+|--------|-----------|
+| HEALTHY | All thresholds clear |
+| WATCH | Margin utilization or position size over limit |
+| DANGER | Any position within `min_liq_distance_pct` of liquidation |
+
+---
+
+### DCA Ladder
+
+Places multiple limit orders stepping away from the current price. Number of levels is auto-calculated from `amount / min_usd_entry` in `config.toml` (default $15).
+
+```bash
+# $150 across 10 levels, 1% apart stepping down from current price
+skill-trading order dca -e orderly -s NEARUSDT --buy --amount 150 -d 1
+
+# $300, tighter 0.5% steps
+skill-trading order dca -e orderly -s BTCUSDT --buy --amount 300 -d 0.5
+
+# Custom start price (instead of fetching current price)
+skill-trading order dca -e orderly -s NEARUSDT --buy --amount 150 -d 1 --start-price 1.15
+
+# Always dry-run first
+skill-trading order dca -e orderly -s NEARUSDT --buy --amount 150 -d 1 --dry-run
+```
+
+#### DCA Ladder Output
+
+```
+  DCA Ladder — NEARUSDT BUY on orderly
+  Amount:  $150.00 total  |  Levels: 10  |  Per level: $15.00
+  Base:    $1.1667  |  Step: 1.00% per level  |  Min entry: $15.00
+  ─────────────────────────────────────────────────────
+
+  [1/10]   Price: $1.1667  Qty: 12  Cost: ~$15.00  Order: 20975514385
+  [2/10]   Price: $1.1550  Qty: 12  Cost: ~$15.00  Order: 20975514386
+  ...
+  [10/10]  Price: $1.0658  Qty: 14  Cost: ~$15.00  Order: 20975514394
+
+  ─────────────────────────────────────────────────────
+  DCA complete — 10/10 levels placed
+  Total allocated: $150.00  |  Total qty: 131  |  Avg price: $1.1450
+```
+
+The `min_usd_entry` setting in `config.toml` controls the granularity — lower values produce more levels for the same budget.
+
+---
+
 ### TWAP
 
 ```bash
@@ -348,6 +465,35 @@ On each tick Claude places one slice, sees the price and fill, updates its runni
 See `skills/skill-loop-trading/SKILL.md` for the full agent loop protocol.
 
 ---
+
+### Session Status Check
+
+Run before any loop or automated workflow to verify the connection and session are healthy:
+
+```bash
+skill-trading status
+```
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SKILL-TRADING STATUS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓  TTC Box API
+  ✓  Session token               VALID  23h 43m remaining
+  ✓  Exchange credentials        orderly configured
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STATUS: READY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Three checks run concurrently:
+1. **TTC Box API** — raw HTTP ping to a public market endpoint; verifies network reachability
+2. **Session token** — confirms `TTC_AUTH_TOKEN` is set and `TTC_TOKEN_ISSUED_AT` is within the 24h window; shows exact time remaining
+3. **Exchange credentials** — scans env vars, config.toml, and per-exchange vars for at least one usable API key + secret pair
+
+Exit code is `0` (READY) or `1` (NOT READY) — use as a gate in shell scripts or agent pre-checks.
 
 ### Authentication
 

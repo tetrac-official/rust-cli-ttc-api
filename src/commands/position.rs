@@ -12,9 +12,66 @@ use tracing::info;
 pub async fn execute(cmd: PositionCommands, settings: &AppConfig, format: OutputFormat) -> Result<()> {
     match cmd.command {
         PositionSubcommands::Get(args) => get_positions(args, settings, format).await,
+        PositionSubcommands::Pnl(args) => pnl_breakdown(args, settings).await,
         PositionSubcommands::Close(args) => close_position(args, settings, format).await,
         PositionSubcommands::CloseAll(args) => close_all_positions(args, settings, format).await,
     }
+}
+
+async fn pnl_breakdown(args: PositionGetArgs, settings: &AppConfig) -> Result<()> {
+    let client = Client::new(settings)?;
+    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+
+    info!("Fetching positions from {}", args.exchange);
+
+    let positions = client.get_positions(&args.exchange, args.symbol.as_deref(), credentials).await?;
+
+    if positions.is_empty() {
+        println!("  No open positions on {}", args.exchange);
+        return Ok(());
+    }
+
+    println!();
+    for pos in &positions {
+        let pnl = pos.unrealized_pnl;
+        let pnl_pct = if pos.entry_price > 0.0 {
+            (pos.mark_price - pos.entry_price) / pos.entry_price * 100.0
+                * if pos.side.to_lowercase() == "sell" { -1.0 } else { 1.0 }
+        } else { 0.0 };
+
+        let distance_to_liq = if pos.liquidation_price > 0.0 && pos.mark_price > 0.0 {
+            ((pos.mark_price - pos.liquidation_price) / pos.mark_price * 100.0).abs()
+        } else { 0.0 };
+
+        let margin_used = if pos.leverage > 0 {
+            pos.notional / pos.leverage as f64
+        } else { pos.notional };
+
+        let pnl_sign = if pnl >= 0.0 { "+" } else { "" };
+        let pnl_pct_sign = if pnl_pct >= 0.0 { "+" } else { "" };
+
+        println!("  ── {} {} {}x ─────────────────────────────────", pos.symbol, pos.side.to_uppercase(), pos.leverage);
+        println!("  Size:          {} units  (${:.2} notional)", pos.size, pos.notional);
+        println!("  Entry price:   ${:.4}", pos.entry_price);
+        println!("  Mark price:    ${:.4}  ({}{:.2}% from entry)", pos.mark_price, pnl_pct_sign, pnl_pct);
+        println!("  Unrealized PnL: {}{:.4} USDT  ({}{:.2}%)", pnl_sign, pnl, pnl_sign, pnl_pct);
+        println!("  Margin used:   ${:.2}  ({}x leverage, {} mode)", margin_used, pos.leverage, pos.margin_type);
+        println!("  Liquidation:   ${:.4}  ({:.2}% away)", pos.liquidation_price, distance_to_liq);
+        println!();
+    }
+
+    if positions.len() > 1 {
+        let total_pnl: f64 = positions.iter().map(|p| p.unrealized_pnl).sum();
+        let total_notional: f64 = positions.iter().map(|p| p.notional).sum();
+        let pnl_sign = if total_pnl >= 0.0 { "+" } else { "" };
+        println!("  ── TOTAL ──────────────────────────────────────");
+        println!("  Positions:     {}", positions.len());
+        println!("  Total notional: ${:.2}", total_notional);
+        println!("  Total PnL:     {}{:.4} USDT", pnl_sign, total_pnl);
+        println!();
+    }
+
+    Ok(())
 }
 
 async fn get_positions(args: PositionGetArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {

@@ -32,6 +32,9 @@ pub struct AppConfig {
 
     pub output: OutputConfig,
 
+    #[serde(default)]
+    pub portfolio: PortfolioConfig,
+
     /// Exchange-specific credentials
     #[serde(default)]
     pub exchanges: HashMap<String, ExchangeCredentialConfig>,
@@ -102,6 +105,35 @@ impl Default for OutputConfig {
         Self {
             format: "table".to_string(),
             color: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PortfolioConfig {
+    /// Warn if locked margin / total balance exceeds this % (0–100)
+    #[serde(default = "PortfolioConfig::default_max_margin_utilization")]
+    pub max_margin_utilization: f64,
+    /// Warn if any position's liquidation price is fewer than this % away from mark price
+    #[serde(default = "PortfolioConfig::default_min_liq_distance_pct")]
+    pub min_liq_distance_pct: f64,
+    /// Warn if any single position's notional (USD value) exceeds this amount
+    #[serde(default = "PortfolioConfig::default_max_position_notional")]
+    pub max_position_notional: f64,
+}
+
+impl PortfolioConfig {
+    fn default_max_margin_utilization() -> f64 { 80.0 }
+    fn default_min_liq_distance_pct() -> f64 { 10.0 }
+    fn default_max_position_notional() -> f64 { 5000.0 }
+}
+
+impl Default for PortfolioConfig {
+    fn default() -> Self {
+        Self {
+            max_margin_utilization: Self::default_max_margin_utilization(),
+            min_liq_distance_pct: Self::default_min_liq_distance_pct(),
+            max_position_notional: Self::default_max_position_notional(),
         }
     }
 }

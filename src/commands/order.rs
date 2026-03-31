@@ -18,6 +18,7 @@ pub async fn execute(cmd: OrderCommands, settings: &AppConfig, format: OutputFor
         OrderSubcommands::Cancel(args) => cancel(args, settings, format).await,
         OrderSubcommands::CancelAll(args) => cancel_all(args, settings, format).await,
         OrderSubcommands::Open(args) => list_open(args, settings, format).await,
+        OrderSubcommands::Dca(args) => place_dca(args, settings).await,
     }
 }
 
@@ -279,6 +280,118 @@ async fn list_open(args: OrderOpenArgs, settings: &AppConfig, format: OutputForm
 
     printer.info(&format!("Found {} open order(s) on {}", orders.len(), args.exchange));
     printer.print_list(&orders);
+
+    Ok(())
+}
+
+async fn place_dca(args: OrderDcaArgs, settings: &AppConfig) -> Result<()> {
+    if !args.buy && !args.sell {
+        return Err(TtcError::InvalidOrder("Must specify --buy or --sell".into()));
+    }
+
+    let side = if args.buy { OrderSide::Buy } else { OrderSide::Sell };
+    let side_label = if args.buy { "BUY" } else { "SELL" };
+    let min_usd = settings.trading.min_usd_entry;
+
+    // Calculate levels from total amount / min entry
+    let levels = ((args.amount / min_usd).floor() as u32).max(1);
+    let level_usd = args.amount / levels as f64;
+
+    let client = Client::new(settings)?;
+    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+
+    // Fetch current price if not provided
+    let base_price = if let Some(p) = args.start_price {
+        p
+    } else {
+        let ticker_params = GetTickersParams { symbol: Some(args.symbol.clone()) };
+        let tickers = client.get_tickers(&args.exchange, ticker_params, credentials.clone()).await?;
+        tickers.iter()
+            .find(|t| t.symbol.to_uppercase() == args.symbol.to_uppercase())
+            .ok_or_else(|| TtcError::InvalidOrder(format!("Symbol {} not found", args.symbol)))?
+            .last_price
+    };
+
+    if base_price <= 0.0 {
+        return Err(TtcError::InvalidOrder("Got zero price from exchange".into()));
+    }
+
+    let price_factor = 10f64.powi(args.price_decimals as i32);
+    let qty_factor = 10f64.powi(args.qty_decimals as i32);
+    let step = args.distance / 100.0;
+
+    println!();
+    println!("  DCA Ladder — {} {} on {}", args.symbol, side_label, args.exchange);
+    println!("  Amount:  ${:.2} total  |  Levels: {}  |  Per level: ${:.2}", args.amount, levels, level_usd);
+    println!("  Base:    ${:.4}  |  Step: {:.2}% per level  |  Min entry: ${:.2}", base_price, args.distance, min_usd);
+    println!("  ─────────────────────────────────────────────────────");
+    println!();
+
+    if settings.trading.dry_run {
+        for n in 0..levels {
+            let price = if args.buy {
+                (base_price * (1.0 - step).powi(n as i32) * price_factor).floor() / price_factor
+            } else {
+                (base_price * (1.0 + step).powi(n as i32) * price_factor).floor() / price_factor
+            };
+            let qty = (level_usd / price * qty_factor).floor() / qty_factor;
+            println!("  DRY-RUN  Level {}/{}  Price: ${:.4}  Qty: {}  Cost: ~${:.2}", n + 1, levels, price, qty, level_usd);
+        }
+        println!();
+        return Ok(());
+    }
+
+    let mut placed = 0u32;
+    let mut total_cost = 0.0_f64;
+    let mut total_qty = 0.0_f64;
+
+    for n in 0..levels {
+        let price = if args.buy {
+            (base_price * (1.0 - step).powi(n as i32) * price_factor).floor() / price_factor
+        } else {
+            (base_price * (1.0 + step).powi(n as i32) * price_factor).floor() / price_factor
+        };
+
+        let qty = (level_usd / price * qty_factor).floor() / qty_factor;
+        if qty <= 0.0 {
+            println!("  [{}/{}]  SKIP — qty rounds to zero at ${:.4}", n + 1, levels, price);
+            continue;
+        }
+
+        let params = LimitOrderParams {
+            symbol: args.symbol.clone(),
+            side: side.clone(),
+            quantity: qty,
+            price,
+            position_side: None,
+            time_in_force: None,
+            reduce_only: None,
+            take_profit_price: None,
+            stop_loss_price: None,
+            client_order_id: Some(format!("dca-{}-{}-{}", args.symbol.to_lowercase(), n + 1, levels)),
+        };
+
+        match client.place_limit_order(&args.exchange, params, credentials.clone()).await {
+            Ok(order) => {
+                placed += 1;
+                total_cost += level_usd;
+                total_qty += qty;
+                println!("  [{}/{}]  Price: ${:.4}  Qty: {}  Cost: ~${:.2}  Order: {}", n + 1, levels, price, qty, level_usd, order.order_id);
+            }
+            Err(e) => {
+                println!("  [{}/{}]  ERROR: {} — skipping level", n + 1, levels, e);
+            }
+        }
+    }
+
+    println!();
+    println!("  ─────────────────────────────────────────────────────");
+    println!("  DCA complete — {}/{} levels placed", placed, levels);
+    println!("  Total allocated: ${:.2}  |  Total qty: {}  |  Avg price: ${:.4}",
+        total_cost, total_qty,
+        if total_qty > 0.0 { total_cost / total_qty } else { 0.0 }
+    );
+    println!();
 
     Ok(())
 }

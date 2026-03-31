@@ -12,3 +12,5 @@ pub mod login;
 pub mod register;
 pub mod twap;
 pub mod twap_slice;
+pub mod portfolio;
+pub mod status;
