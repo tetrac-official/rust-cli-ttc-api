@@ -9,7 +9,11 @@ use crate::models::*;
 use crate::output::{OutputFormat, Printer};
 use tracing::info;
 
-pub async fn execute(cmd: PositionCommands, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+pub async fn execute(
+    cmd: PositionCommands,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     match cmd.command {
         PositionSubcommands::Get(args) => get_positions(args, settings, format).await,
         PositionSubcommands::Pnl(args) => pnl_breakdown(args, settings).await,
@@ -20,11 +24,19 @@ pub async fn execute(cmd: PositionCommands, settings: &AppConfig, format: Output
 
 async fn pnl_breakdown(args: PositionGetArgs, settings: &AppConfig) -> Result<()> {
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     info!("Fetching positions from {}", args.exchange);
 
-    let positions = client.get_positions(&args.exchange, args.symbol.as_deref(), credentials).await?;
+    let positions = client
+        .get_positions(&args.exchange, args.symbol.as_deref(), credentials)
+        .await?;
 
     if positions.is_empty() {
         println!("  No open positions on {}", args.exchange);
@@ -35,28 +47,59 @@ async fn pnl_breakdown(args: PositionGetArgs, settings: &AppConfig) -> Result<()
     for pos in &positions {
         let pnl = pos.unrealized_pnl;
         let pnl_pct = if pos.entry_price > 0.0 {
-            (pos.mark_price - pos.entry_price) / pos.entry_price * 100.0
-                * if pos.side.to_lowercase() == "sell" { -1.0 } else { 1.0 }
-        } else { 0.0 };
+            (pos.mark_price - pos.entry_price) / pos.entry_price
+                * 100.0
+                * if pos.side.to_lowercase() == "sell" {
+                    -1.0
+                } else {
+                    1.0
+                }
+        } else {
+            0.0
+        };
 
         let distance_to_liq = if pos.liquidation_price > 0.0 && pos.mark_price > 0.0 {
             ((pos.mark_price - pos.liquidation_price) / pos.mark_price * 100.0).abs()
-        } else { 0.0 };
+        } else {
+            0.0
+        };
 
         let margin_used = if pos.leverage > 0 {
             pos.notional / pos.leverage as f64
-        } else { pos.notional };
+        } else {
+            pos.notional
+        };
 
         let pnl_sign = if pnl >= 0.0 { "+" } else { "" };
         let pnl_pct_sign = if pnl_pct >= 0.0 { "+" } else { "" };
 
-        println!("  ── {} {} {}x ─────────────────────────────────", pos.symbol, pos.side.to_uppercase(), pos.leverage);
-        println!("  Size:          {} units  (${:.2} notional)", pos.size, pos.notional);
+        println!(
+            "  ── {} {} {}x ─────────────────────────────────",
+            pos.symbol,
+            pos.side.to_uppercase(),
+            pos.leverage
+        );
+        println!(
+            "  Size:          {} units  (${:.2} notional)",
+            pos.size, pos.notional
+        );
         println!("  Entry price:   ${:.4}", pos.entry_price);
-        println!("  Mark price:    ${:.4}  ({}{:.2}% from entry)", pos.mark_price, pnl_pct_sign, pnl_pct);
-        println!("  Unrealized PnL: {}{:.4} USDT  ({}{:.2}%)", pnl_sign, pnl, pnl_sign, pnl_pct);
-        println!("  Margin used:   ${:.2}  ({}x leverage, {} mode)", margin_used, pos.leverage, pos.margin_type);
-        println!("  Liquidation:   ${:.4}  ({:.2}% away)", pos.liquidation_price, distance_to_liq);
+        println!(
+            "  Mark price:    ${:.4}  ({}{:.2}% from entry)",
+            pos.mark_price, pnl_pct_sign, pnl_pct
+        );
+        println!(
+            "  Unrealized PnL: {}{:.4} USDT  ({}{:.2}%)",
+            pnl_sign, pnl, pnl_sign, pnl_pct
+        );
+        println!(
+            "  Margin used:   ${:.2}  ({}x leverage, {} mode)",
+            margin_used, pos.leverage, pos.margin_type
+        );
+        println!(
+            "  Liquidation:   ${:.4}  ({:.2}% away)",
+            pos.liquidation_price, distance_to_liq
+        );
         println!();
     }
 
@@ -74,14 +117,26 @@ async fn pnl_breakdown(args: PositionGetArgs, settings: &AppConfig) -> Result<()
     Ok(())
 }
 
-async fn get_positions(args: PositionGetArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn get_positions(
+    args: PositionGetArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     info!("Fetching positions from {}", args.exchange);
 
-    let positions = client.get_positions(&args.exchange, args.symbol.as_deref(), credentials).await?;
+    let positions = client
+        .get_positions(&args.exchange, args.symbol.as_deref(), credentials)
+        .await?;
 
     if positions.is_empty() {
         printer.info(&format!("No open positions on {}", args.exchange));
@@ -101,7 +156,11 @@ async fn get_positions(args: PositionGetArgs, settings: &AppConfig, format: Outp
     Ok(())
 }
 
-async fn close_position(args: PositionCloseArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn close_position(
+    args: PositionCloseArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
 
     if settings.trading.dry_run {
@@ -113,7 +172,13 @@ async fn close_position(args: PositionCloseArgs, settings: &AppConfig, format: O
     }
 
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     info!("Closing position {} on {}", args.symbol, args.exchange);
 
@@ -123,7 +188,9 @@ async fn close_position(args: PositionCloseArgs, settings: &AppConfig, format: O
         quantity: args.quantity,
     };
 
-    let result = client.close_position(&args.exchange, params, credentials).await?;
+    let result = client
+        .close_position(&args.exchange, params, credentials)
+        .await?;
 
     printer.success(&format!(
         "Position closed: {} {} on {}",
@@ -134,23 +201,32 @@ async fn close_position(args: PositionCloseArgs, settings: &AppConfig, format: O
     Ok(())
 }
 
-async fn close_all_positions(args: PositionCloseAllArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn close_all_positions(
+    args: PositionCloseAllArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
 
     if settings.trading.dry_run {
-        printer.dry_run(&format!(
-            "Would close all positions on {}",
-            args.exchange
-        ));
+        printer.dry_run(&format!("Would close all positions on {}", args.exchange));
         return Ok(());
     }
 
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     info!("Fetching all positions to close on {}", args.exchange);
 
-    let positions = client.get_positions(&args.exchange, None, credentials.clone()).await?;
+    let positions = client
+        .get_positions(&args.exchange, None, credentials.clone())
+        .await?;
 
     if positions.is_empty() {
         printer.info(&format!("No open positions to close on {}", args.exchange));
@@ -179,7 +255,10 @@ async fn close_all_positions(args: PositionCloseAllArgs, settings: &AppConfig, f
             quantity: None,
         };
 
-        match client.close_position(&args.exchange, params, credentials.clone()).await {
+        match client
+            .close_position(&args.exchange, params, credentials.clone())
+            .await
+        {
             Ok(_) => {
                 closed += 1;
                 println!("  Closed {} {} ({})", pos.side, pos.symbol, pos.size);

@@ -9,7 +9,11 @@ use crate::models::*;
 use crate::output::{OutputFormat, Printer};
 use tracing::info;
 
-pub async fn execute(cmd: AccountCommands, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+pub async fn execute(
+    cmd: AccountCommands,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     match cmd.command {
         AccountSubcommands::Balance(args) => get_balance(args, settings, format).await,
         AccountSubcommands::Leverage(args) => set_leverage(args, settings, format).await,
@@ -18,10 +22,20 @@ pub async fn execute(cmd: AccountCommands, settings: &AppConfig, format: OutputF
     }
 }
 
-async fn get_balance(args: AccountBalanceArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn get_balance(
+    args: AccountBalanceArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     info!("Fetching balance from {}", args.exchange);
 
@@ -40,11 +54,17 @@ async fn get_balance(args: AccountBalanceArgs, settings: &AppConfig, format: Out
     Ok(())
 }
 
-async fn set_leverage(args: AccountLeverageArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn set_leverage(
+    args: AccountLeverageArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
 
     if args.leverage == 0 {
-        return Err(TtcError::InvalidOrder("Leverage must be greater than 0".into()));
+        return Err(TtcError::InvalidOrder(
+            "Leverage must be greater than 0".into(),
+        ));
     }
 
     if settings.trading.dry_run {
@@ -56,16 +76,27 @@ async fn set_leverage(args: AccountLeverageArgs, settings: &AppConfig, format: O
     }
 
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
-    info!("Setting leverage to {}x for {} on {}", args.leverage, args.symbol, args.exchange);
+    info!(
+        "Setting leverage to {}x for {} on {}",
+        args.leverage, args.symbol, args.exchange
+    );
 
     let params = SetLeverageParams {
         symbol: args.symbol.clone(),
         leverage: args.leverage,
     };
 
-    let result = client.set_leverage(&args.exchange, params, credentials).await?;
+    let result = client
+        .set_leverage(&args.exchange, params, credentials)
+        .await?;
 
     printer.success(&format!(
         "Leverage set to {}x for {} on {}",
@@ -79,7 +110,11 @@ async fn set_leverage(args: AccountLeverageArgs, settings: &AppConfig, format: O
     Ok(())
 }
 
-async fn set_margin_mode(args: AccountMarginArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn set_margin_mode(
+    args: AccountMarginArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
 
     let margin_mode = match args.mode {
@@ -96,16 +131,27 @@ async fn set_margin_mode(args: AccountMarginArgs, settings: &AppConfig, format: 
     }
 
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
-    info!("Setting margin mode to {} on {}", margin_mode, args.exchange);
+    info!(
+        "Setting margin mode to {} on {}",
+        margin_mode, args.exchange
+    );
 
     let params = SetMarginModeParams {
         margin_mode,
         symbol: args.symbol,
     };
 
-    let result = client.set_margin_mode(&args.exchange, params, credentials).await?;
+    let result = client
+        .set_margin_mode(&args.exchange, params, credentials)
+        .await?;
 
     printer.success(&format!(
         "Margin mode set to {} on {}",
@@ -119,34 +165,53 @@ async fn set_margin_mode(args: AccountMarginArgs, settings: &AppConfig, format: 
     Ok(())
 }
 
-async fn set_hedge_mode(args: AccountHedgeArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn set_hedge_mode(
+    args: AccountHedgeArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
 
     if !args.enable && !args.disable {
-        return Err(TtcError::InvalidOrder("Must specify --enable or --disable".into()));
+        return Err(TtcError::InvalidOrder(
+            "Must specify --enable or --disable".into(),
+        ));
     }
 
     let enabled = if args.disable { false } else { args.enable };
-    let mode_str = if enabled { "hedge mode" } else { "one-way mode" };
+    let mode_str = if enabled {
+        "hedge mode"
+    } else {
+        "one-way mode"
+    };
 
     if settings.trading.dry_run {
-        printer.dry_run(&format!(
-            "Would set {} on {}",
-            mode_str, args.exchange
-        ));
+        printer.dry_run(&format!("Would set {} on {}", mode_str, args.exchange));
         return Ok(());
     }
 
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     info!("Setting {} on {}", mode_str, args.exchange);
 
-    let result = client.set_hedge_mode(&args.exchange, enabled, credentials).await?;
+    let result = client
+        .set_hedge_mode(&args.exchange, enabled, credentials)
+        .await?;
 
     printer.success(&format!(
         "{} enabled on {}",
-        if result.hedge_mode { "Hedge mode" } else { "One-way mode" },
+        if result.hedge_mode {
+            "Hedge mode"
+        } else {
+            "One-way mode"
+        },
         args.exchange
     ));
 

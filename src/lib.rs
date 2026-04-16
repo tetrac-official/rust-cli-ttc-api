@@ -12,5 +12,5 @@ pub mod error;
 pub mod models;
 pub mod output;
 
-pub use error::{Result, TtcError};
 pub use config::AppConfig;
+pub use error::{Result, TtcError};

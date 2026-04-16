@@ -1,16 +1,18 @@
 //! Command implementations
 
-pub mod common;
-pub mod order;
-pub mod position;
 pub mod account;
-pub mod orders;
-pub mod market;
-pub mod risk;
+pub mod brief;
+pub mod common;
 pub mod config;
 pub mod login;
+pub mod market;
+pub mod order;
+pub mod orders;
+pub mod portfolio;
+pub mod position;
 pub mod register;
+pub mod risk;
+pub mod status;
 pub mod twap;
 pub mod twap_slice;
-pub mod portfolio;
-pub mod status;
+pub mod market_maker;

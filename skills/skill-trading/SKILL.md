@@ -180,36 +180,70 @@ skill-trading market volume-snapshot
 Shows 24h volume, open interest, and TVL per exchange (CEX + DEX).
 
 ### Scanner — Technical Analysis
+
+Two modes: single symbol or watchlist scan.
+
+#### Single symbol
 ```
 skill-trading market scanner --symbol <SYM> [--timeframe 1h] [--bars 1000] [--swing-strength 10]
 ```
-Runs Gann fan technical analysis on a symbol. Output:
+Full output: direction, confidence, Gann unit, momentum, stop, TP1-3, R/R, reasoning note.
 
 ```
-NEARUSDT / 1h — LONG HIGH  (strength 80/100)
-Entry:     $1.1700
-Gann unit: $0.000558/bar (1x1)  |  Momentum: -0.000477/bar (down)  |  Avg range: $0.009500/bar
-Stop Loss: $1.1697  (0.19% risk)
-TP1:       $1.3885  (+18.47%)
-TP2:       $1.8259  (+55.80%)
-TP3:       $2.2634  (+93.12%)
-R/R:       95.61x
-Note:      bull composite 79.6 (score 66, R/R 95.61) vs opposite 29.7
+NEARUSDT / 1h — LONG HIGH  (strength 79/100)
+Entry:     $1.1940
+Gann unit: $0.000558/bar (1x1)  |  Momentum: +0.000700/bar (flat)  |  Avg range: $0.014500/bar
+Stop Loss: $1.1862  (0.65% risk)
+TP1:       $1.4214  (+19.04%)
+TP2:       $1.8918  (+58.44%)
+TP3:       $2.3622  (+97.84%)
+R/R:       29.14x
+Note:      bull composite 79.0 (score 65, R/R 29.14) vs opposite 39.6
 ```
 
-Fields:
-- **Direction** — LONG, SHORT, or NEUTRAL
-- **Confidence** — HIGH / MEDIUM / LOW
-- **Gann unit** — price per bar at the 1x1 fan angle; multiply by ratio (2, 3, 4…) to get steeper fan line slopes
-- **Momentum** — actual avg price change/bar over last 20 bars (negative = downtrend)
-- **Avg range** — avg bar range over 20 bars; useful for sizing stops
-- **Stop Loss / TP1-3** — omitted when signal is NEUTRAL (API returns null levels)
-- **R/R ratio** — risk/reward multiplier
+#### Watchlist scan
+```
+# Use config.toml [watchlist] symbols (default)
+skill-trading market scanner
+
+# Custom list
+skill-trading market scanner --watchlist BTCUSDT,ETHUSDT,SOLUSDT,NEARUSDT
+
+# Filters
+skill-trading market scanner --only-high            # HIGH confidence only
+skill-trading market scanner --min-rr 3.0           # R/R ≥ 3.0 only
+skill-trading market scanner --timeframe 4h --only-high --min-rr 3.0
+```
+
+Output — compact table, one row per symbol:
+```
+  Scanner — 1h  │  3 symbols  │  filter: R/R ≥ 2.0
+  ──────────────────────────────────────────────────────────────────────────────────────
+  Symbol          Dir      Conf    Str         Entry            SL           TP1     R/R
+  ──────────────────────────────────────────────────────────────────────────────────────
+  NEARUSDT        LONG     HIGH     79       $1.1940       $1.1862       $1.4214   29.1x
+  BTCUSDT         NEUTRAL  —
+  ETHUSDT         LONG     MEDIUM   66      $2094.01      $2044.89      $2293.77    4.1x
+  ──────────────────────────────────────────────────────────────────────────────────────
+  2 signal(s) match  │  1 NEUTRAL  │  0 below filter
+```
+
+- Signals that don't meet the filter are shown dimmed with `filtered` tag — not hidden
+- NEUTRAL signals are always shown (no levels to filter on)
+- All scans run in parallel — 10-symbol watchlist takes the same time as 1
+
+**Rules:**
+- Use watchlist scan as the morning signal sweep before `brief`
+- Only act on signals that pass your R/R threshold — don't lower the bar mid-session
+- `--only-high` + `--min-rr 3.0` is the recommended filter for new entries
+- Confirm with `brief` before acting: check portfolio health is not DANGER first
 
 Parameters:
 - `--timeframe` — `1m`, `5m`, `15m`, `1h`, `4h`, `1d` (default: `1h`)
 - `--bars` — bars to analyze, max 1000 (default: 1000)
 - `--swing-strength` — lookback for swing detection (default: 10)
+- `--min-rr` — minimum R/R to show as a match (default: 2.0)
+- `--only-high` — filter to HIGH confidence only
 
 > **Gann fan note:** Descending fan lines from a high pivot can project below zero after many bars — this is mathematically correct, not a bug. Use the Gann unit and momentum to assess whether the move is realistic given the timeframe.
 
@@ -335,11 +369,65 @@ Runs a foreground loop that:
 1. **Waits** until the position enters profit (PnL > 0)
 2. **Activates** — records peak price, places first stop at `peak × (1 - trail_pct%)`
 3. **Trails** — each poll, if price sets a new peak, cancels old stop and places a new one
-4. **Exits** automatically when position closes
+4. **Exits** automatically when position closes (and removes the progress file)
 
 Default: `--trail-pct 2.0`, `--interval 30`. Press `Ctrl+C` to stop.
 
+**Progress file:** writes JSON state to `~/.trail-watch-{symbol}-{exchange}.json` on every tick. An agent can read this file on demand to check trail-watch status without interrupting the loop.
+
+| Field | Description |
+|-------|-------------|
+| `active` | `false` while waiting for profit, `true` once trailing |
+| `mark_price`, `entry_price` | Current prices |
+| `peak_price` | Tracked peak (`null` while inactive) |
+| `current_stop`, `stop_order_id` | Active stop level and order ID (`null` if none placed) |
+| `unrealized_pnl`, `position_size` | Position state |
+| `updated_at` | ISO 8601 timestamp of last tick |
+
 > Use this after entering a position — it watches passively and only activates once you're in profit.
+
+---
+
+## MORNING BRIEF
+
+Run once at the start of every session to get a full picture before touching anything:
+
+```bash
+skill-trading brief -e orderly
+# aliases: morning, mb
+```
+
+Single command. Runs all fetches concurrently and presents them in one report:
+
+| Section | Data |
+|---------|------|
+| Session | Token validity + time remaining |
+| Watchlist Prices | Price, 24h%, volume, OI, funding rate per symbol |
+| Signals | Scanner direction, confidence, entry, SL, TP1, R/R per symbol |
+| Portfolio | Balance, utilization, all positions with PnL and liq distance |
+| Open Orders | All live orders with price and qty |
+| Overall | READY / WATCH / DANGER banner |
+
+**Override watchlist on the fly:**
+```bash
+skill-trading brief -e orderly --watchlist SOLUSDT,BTCUSDT,NEARUSDT
+```
+
+**Change signal timeframe:**
+```bash
+skill-trading brief -e orderly --timeframe 4h
+```
+
+**Watchlist** defaults come from `config.toml`:
+```toml
+[watchlist]
+symbols = ["NEARUSDT", "BTCUSDT", "ETHUSDT"]
+```
+
+**Rules:**
+- Always run `brief` before starting a new session's trading
+- If OVERALL is DANGER, address the at-risk position before any new orders
+- The brief takes 2–5 seconds (all fetches run in parallel)
 
 ---
 

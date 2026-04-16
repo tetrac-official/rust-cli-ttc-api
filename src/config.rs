@@ -3,8 +3,8 @@
 use crate::error::{Result, TtcError};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AppConfig {
@@ -34,6 +34,12 @@ pub struct AppConfig {
 
     #[serde(default)]
     pub portfolio: PortfolioConfig,
+
+    #[serde(default)]
+    pub watchlist: WatchlistConfig,
+
+    #[serde(default, rename = "market-maker")]
+    pub market_maker: MarketMakerConfig,
 
     /// Exchange-specific credentials
     #[serde(default)]
@@ -79,7 +85,9 @@ pub struct TradingConfig {
 }
 
 impl TradingConfig {
-    fn default_min_usd_entry() -> f64 { 15.0 }
+    fn default_min_usd_entry() -> f64 {
+        15.0
+    }
 }
 
 impl Default for TradingConfig {
@@ -123,9 +131,15 @@ pub struct PortfolioConfig {
 }
 
 impl PortfolioConfig {
-    fn default_max_margin_utilization() -> f64 { 80.0 }
-    fn default_min_liq_distance_pct() -> f64 { 10.0 }
-    fn default_max_position_notional() -> f64 { 5000.0 }
+    fn default_max_margin_utilization() -> f64 {
+        80.0
+    }
+    fn default_min_liq_distance_pct() -> f64 {
+        10.0
+    }
+    fn default_max_position_notional() -> f64 {
+        5000.0
+    }
 }
 
 impl Default for PortfolioConfig {
@@ -134,6 +148,65 @@ impl Default for PortfolioConfig {
             max_margin_utilization: Self::default_max_margin_utilization(),
             min_liq_distance_pct: Self::default_min_liq_distance_pct(),
             max_position_notional: Self::default_max_position_notional(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MarketMakerConfig {
+    /// Limit order fee rate per side (e.g., 0.001 = 0.1%). Use 0.0 for zero-fee exchanges.
+    #[serde(
+        default = "MarketMakerConfig::default_commission",
+        rename = "limit_order_commission"
+    )]
+    pub limit_order_commission: f64,
+
+    /// Minimum spread as a fraction of entry price (e.g., 0.001 = 0.1%).
+    /// The effective spread per round is max(requested_spread, entry_price × min_spread).
+    #[serde(default = "MarketMakerConfig::default_min_spread")]
+    pub min_spread: f64,
+}
+
+impl MarketMakerConfig {
+    fn default_commission() -> f64 {
+        0.001 // 0.1% — a common taker default; override in config.toml
+    }
+
+    fn default_min_spread() -> f64 {
+        0.001 // 0.1% floor
+    }
+}
+
+impl Default for MarketMakerConfig {
+    fn default() -> Self {
+        Self {
+            limit_order_commission: Self::default_commission(),
+            min_spread: Self::default_min_spread(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WatchlistConfig {
+    /// Symbols to show in morning brief and price alerts
+    #[serde(default = "WatchlistConfig::default_symbols")]
+    pub symbols: Vec<String>,
+}
+
+impl WatchlistConfig {
+    fn default_symbols() -> Vec<String> {
+        vec![
+            "BTCUSDT".to_string(),
+            "ETHUSDT".to_string(),
+            "NEARUSDT".to_string(),
+        ]
+    }
+}
+
+impl Default for WatchlistConfig {
+    fn default() -> Self {
+        Self {
+            symbols: Self::default_symbols(),
         }
     }
 }
@@ -201,7 +274,9 @@ impl AppConfig {
     /// 3. config.toml [exchanges.xxx] sections
     pub fn get_credentials(&self, exchange: &str) -> Option<ExchangeCredentialConfig> {
         // CLI flag overrides (exchange_api_key set from --exchange-api-key or EXCHANGE_API_KEY)
-        if let (Some(api_key), Some(api_secret)) = (&self.exchange_api_key, &self.exchange_api_secret) {
+        if let (Some(api_key), Some(api_secret)) =
+            (&self.exchange_api_key, &self.exchange_api_secret)
+        {
             return Some(ExchangeCredentialConfig {
                 api_key: api_key.clone(),
                 api_secret: api_secret.clone(),
@@ -291,6 +366,9 @@ mod tests {
         let parsed: AppConfig = toml::from_str(&toml_str).unwrap();
         assert_eq!(parsed.api.base_url, config.api.base_url);
         assert_eq!(parsed.api.timeout, config.api.timeout);
-        assert_eq!(parsed.trading.default_leverage, config.trading.default_leverage);
+        assert_eq!(
+            parsed.trading.default_leverage,
+            config.trading.default_leverage
+        );
     }
 }

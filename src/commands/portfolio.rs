@@ -15,11 +15,21 @@ enum HealthLevel {
     Danger,
 }
 
-pub async fn execute(cmd: PortfolioCommands, settings: &AppConfig, _format: OutputFormat) -> Result<()> {
+pub async fn execute(
+    cmd: PortfolioCommands,
+    settings: &AppConfig,
+    _format: OutputFormat,
+) -> Result<()> {
     match cmd.command {
         PortfolioSubcommands::Summary(args) => {
             let client = Client::new(settings)?;
-            let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+            let credentials = get_credentials(
+                &args.exchange,
+                args.api_key,
+                args.api_secret,
+                args.passphrase,
+                settings,
+            )?;
 
             // Fetch balance and positions concurrently
             let (balances, positions) = tokio::try_join!(
@@ -34,7 +44,11 @@ pub async fn execute(cmd: PortfolioCommands, settings: &AppConfig, _format: Outp
             let total_balance = bal.map(|b| b.balance).unwrap_or(0.0);
             let available = bal.map(|b| b.available).unwrap_or(0.0);
             let locked = bal.map(|b| b.locked).unwrap_or(0.0);
-            let utilization_pct = if total_balance > 0.0 { locked / total_balance * 100.0 } else { 0.0 };
+            let utilization_pct = if total_balance > 0.0 {
+                locked / total_balance * 100.0
+            } else {
+                0.0
+            };
             let warn_utilization = utilization_pct > cfg.max_margin_utilization;
 
             // Compute per-position derived values
@@ -50,7 +64,9 @@ pub async fn execute(cmd: PortfolioCommands, settings: &AppConfig, _format: Outp
                     "Margin utilization {:.1}% exceeds threshold ({:.1}%)",
                     utilization_pct, cfg.max_margin_utilization
                 ));
-                if health < HealthLevel::Watch { health = HealthLevel::Watch; }
+                if health < HealthLevel::Watch {
+                    health = HealthLevel::Watch;
+                }
             }
 
             println!();
@@ -65,7 +81,8 @@ pub async fn execute(cmd: PortfolioCommands, settings: &AppConfig, _format: Outp
             println!("  Available:    ${:.2}", available);
             println!("  Locked:       ${:.2}", locked);
             if warn_utilization {
-                println!("  Utilization:  {:.1}%  {}",
+                println!(
+                    "  Utilization:  {:.1}%  {}",
                     utilization_pct,
                     format!("[WATCH — threshold {:.0}%]", cfg.max_margin_utilization).yellow()
                 );
@@ -84,26 +101,43 @@ pub async fn execute(cmd: PortfolioCommands, settings: &AppConfig, _format: Outp
                 for pos in &positions {
                     let pnl = pos.unrealized_pnl;
                     let pnl_pct = if pos.entry_price > 0.0 {
-                        (pos.mark_price - pos.entry_price) / pos.entry_price * 100.0
-                            * if pos.side.to_lowercase() == "sell" { -1.0 } else { 1.0 }
-                    } else { 0.0 };
-                    let margin_used = if pos.leverage > 0 { pos.notional / pos.leverage as f64 } else { pos.notional };
+                        (pos.mark_price - pos.entry_price) / pos.entry_price
+                            * 100.0
+                            * if pos.side.to_lowercase() == "sell" {
+                                -1.0
+                            } else {
+                                1.0
+                            }
+                    } else {
+                        0.0
+                    };
+                    let margin_used = if pos.leverage > 0 {
+                        pos.notional / pos.leverage as f64
+                    } else {
+                        pos.notional
+                    };
                     let liq_dist_pct = if pos.liquidation_price > 0.0 && pos.mark_price > 0.0 {
                         ((pos.mark_price - pos.liquidation_price) / pos.mark_price * 100.0).abs()
-                    } else { 100.0 };
+                    } else {
+                        100.0
+                    };
 
                     let warn_liq = liq_dist_pct < cfg.min_liq_distance_pct;
                     let warn_notional = pos.notional > cfg.max_position_notional;
 
                     if warn_liq {
-                        if health < HealthLevel::Danger { health = HealthLevel::Danger; }
+                        if health < HealthLevel::Danger {
+                            health = HealthLevel::Danger;
+                        }
                         warnings.push(format!(
                             "{} liq distance {:.2}% is below threshold ({:.1}%)",
                             pos.symbol, liq_dist_pct, cfg.min_liq_distance_pct
                         ));
                     }
                     if warn_notional {
-                        if health < HealthLevel::Watch { health = HealthLevel::Watch; }
+                        if health < HealthLevel::Watch {
+                            health = HealthLevel::Watch;
+                        }
                         warnings.push(format!(
                             "{} notional ${:.2} exceeds max_position_notional (${:.2})",
                             pos.symbol, pos.notional, cfg.max_position_notional
@@ -119,22 +153,32 @@ pub async fn execute(cmd: PortfolioCommands, settings: &AppConfig, _format: Outp
 
                     // Notional line — warn if oversized
                     let notional_str = if warn_notional {
-                        format!("${:.2}  {}", pos.notional, "[WARN — oversized]".yellow()).to_string()
+                        format!("${:.2}  {}", pos.notional, "[WARN — oversized]".yellow())
+                            .to_string()
                     } else {
                         format!("${:.2}", pos.notional)
                     };
 
                     // Liq distance line — warn if too close
                     let liq_str = if warn_liq {
-                        format!("{:.2}%  {}", liq_dist_pct, "[DANGER — below 10%]".red()).to_string()
+                        format!("{:.2}%  {}", liq_dist_pct, "[DANGER — below 10%]".red())
+                            .to_string()
                     } else {
                         format!("{:.2}%", liq_dist_pct)
                     };
 
                     println!();
-                    println!("  {}  {} {}x", pos.symbol.bold(), pos.side.to_uppercase(), pos.leverage);
+                    println!(
+                        "  {}  {} {}x",
+                        pos.symbol.bold(),
+                        pos.side.to_uppercase(),
+                        pos.leverage
+                    );
                     println!("    Size:     {}    Notional: {}", pos.size, notional_str);
-                    println!("    PnL:      {}{:.4} USDT  ({}{:.2}%)", pnl_sign, pnl, pnl_pct_sign, pnl_pct);
+                    println!(
+                        "    PnL:      {}{:.4} USDT  ({}{:.2}%)",
+                        pnl_sign, pnl, pnl_pct_sign, pnl_pct
+                    );
                     println!("    Margin:   ${:.2}    Liq dist: {}", margin_used, liq_str);
                 }
 
@@ -161,8 +205,8 @@ pub async fn execute(cmd: PortfolioCommands, settings: &AppConfig, _format: Outp
             println!("  {}", "━".repeat(55));
             match health {
                 HealthLevel::Healthy => println!("  STATUS: {}", "HEALTHY".green().bold()),
-                HealthLevel::Watch   => println!("  STATUS: {}", "WATCH".yellow().bold()),
-                HealthLevel::Danger  => println!("  STATUS: {}", "DANGER".red().bold()),
+                HealthLevel::Watch => println!("  STATUS: {}", "WATCH".yellow().bold()),
+                HealthLevel::Danger => println!("  STATUS: {}", "DANGER".red().bold()),
             }
             println!("  {}", "━".repeat(55));
             println!();

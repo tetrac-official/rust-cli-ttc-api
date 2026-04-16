@@ -26,8 +26,12 @@ fn determine_side(buy: bool, sell: bool) -> Result<OrderSide> {
     match (buy, sell) {
         (true, false) => Ok(OrderSide::Buy),
         (false, true) => Ok(OrderSide::Sell),
-        (false, false) => Err(TtcError::InvalidOrder("Must specify --buy or --sell".into())),
-        (true, true) => Err(TtcError::InvalidOrder("Cannot specify both --buy and --sell".into())),
+        (false, false) => Err(TtcError::InvalidOrder(
+            "Must specify --buy or --sell".into(),
+        )),
+        (true, true) => Err(TtcError::InvalidOrder(
+            "Cannot specify both --buy and --sell".into(),
+        )),
     }
 }
 
@@ -48,7 +52,11 @@ fn convert_trigger(trigger: TriggerTypeArg) -> TriggerType {
     }
 }
 
-async fn place_limit(args: OrderLimitArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn place_limit(
+    args: OrderLimitArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
     let side = determine_side(args.buy, args.sell)?;
 
@@ -61,7 +69,13 @@ async fn place_limit(args: OrderLimitArgs, settings: &AppConfig, format: OutputF
     }
 
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     let params = LimitOrderParams {
         symbol: args.symbol.clone(),
@@ -76,9 +90,14 @@ async fn place_limit(args: OrderLimitArgs, settings: &AppConfig, format: OutputF
         stop_loss_price: None,
     };
 
-    info!("Placing limit order: {} {} {} @ {}", side, args.quantity, args.symbol, args.price);
+    info!(
+        "Placing limit order: {} {} {} @ {}",
+        side, args.quantity, args.symbol, args.price
+    );
 
-    let result = client.place_limit_order(&args.exchange, params, credentials).await?;
+    let result = client
+        .place_limit_order(&args.exchange, params, credentials)
+        .await?;
 
     printer.success(&format!(
         "Limit order placed: {} {} {} @ {}",
@@ -89,7 +108,11 @@ async fn place_limit(args: OrderLimitArgs, settings: &AppConfig, format: OutputF
     Ok(())
 }
 
-async fn place_market(args: OrderMarketArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn place_market(
+    args: OrderMarketArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
     let side = determine_side(args.buy, args.sell)?;
 
@@ -102,7 +125,13 @@ async fn place_market(args: OrderMarketArgs, settings: &AppConfig, format: Outpu
     }
 
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     let params = MarketOrderParams {
         symbol: args.symbol.clone(),
@@ -113,9 +142,14 @@ async fn place_market(args: OrderMarketArgs, settings: &AppConfig, format: Outpu
         client_order_id: args.client_order_id,
     };
 
-    info!("Placing market order: {} {} {}", side, args.quantity, args.symbol);
+    info!(
+        "Placing market order: {} {} {}",
+        side, args.quantity, args.symbol
+    );
 
-    let result = client.place_market_order(&args.exchange, params, credentials).await?;
+    let result = client
+        .place_market_order(&args.exchange, params, credentials)
+        .await?;
 
     printer.success(&format!(
         "Market order placed: {} {} {}",
@@ -139,7 +173,13 @@ async fn place_stop(args: OrderStopArgs, settings: &AppConfig, format: OutputFor
     }
 
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     let params = StopOrderParams {
         symbol: args.symbol.clone(),
@@ -154,9 +194,14 @@ async fn place_stop(args: OrderStopArgs, settings: &AppConfig, format: OutputFor
         close_position: None,
     };
 
-    info!("Placing stop order: {} {} {} @ stop {}", side, args.quantity, args.symbol, args.stop_price);
+    info!(
+        "Placing stop order: {} {} {} @ stop {}",
+        side, args.quantity, args.symbol, args.stop_price
+    );
 
-    let result = client.place_stop_order(&args.exchange, params, credentials).await?;
+    let result = client
+        .place_stop_order(&args.exchange, params, credentials)
+        .await?;
 
     printer.success(&format!(
         "Stop order placed: {} {} {} @ {}",
@@ -167,7 +212,11 @@ async fn place_stop(args: OrderStopArgs, settings: &AppConfig, format: OutputFor
     Ok(())
 }
 
-async fn place_take_profit(args: OrderTakeProfitArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn place_take_profit(
+    args: OrderTakeProfitArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
     let side = determine_side(args.buy, args.sell)?;
 
@@ -180,7 +229,13 @@ async fn place_take_profit(args: OrderTakeProfitArgs, settings: &AppConfig, form
     }
 
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     // Take profit is essentially a stop order for the opposite direction
     let params = StopOrderParams {
@@ -196,9 +251,14 @@ async fn place_take_profit(args: OrderTakeProfitArgs, settings: &AppConfig, form
         close_position: None,
     };
 
-    info!("Placing take profit order: {} {} {} @ {}", side, args.quantity, args.symbol, args.tp_price);
+    info!(
+        "Placing take profit order: {} {} {} @ {}",
+        side, args.quantity, args.symbol, args.tp_price
+    );
 
-    let result = client.place_stop_order(&args.exchange, params, credentials).await?;
+    let result = client
+        .place_stop_order(&args.exchange, params, credentials)
+        .await?;
 
     printer.success(&format!(
         "Take profit order placed: {} {} {} @ {}",
@@ -213,7 +273,9 @@ async fn cancel(args: OrderCancelArgs, settings: &AppConfig, format: OutputForma
     let printer = Printer::new(format);
 
     if args.order_id.is_none() && args.client_order_id.is_none() {
-        return Err(TtcError::InvalidOrder("Either --order-id or --client-order-id is required".into()));
+        return Err(TtcError::InvalidOrder(
+            "Either --order-id or --client-order-id is required".into(),
+        ));
     }
 
     if settings.trading.dry_run {
@@ -225,7 +287,13 @@ async fn cancel(args: OrderCancelArgs, settings: &AppConfig, format: OutputForma
     }
 
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     let params = CancelOrderParams {
         symbol: args.symbol.clone(),
@@ -235,34 +303,48 @@ async fn cancel(args: OrderCancelArgs, settings: &AppConfig, format: OutputForma
 
     info!("Canceling order on {}", args.exchange);
 
-    let cancelled = client.cancel_order(&args.exchange, params, credentials).await?;
+    let cancelled = client
+        .cancel_order(&args.exchange, params, credentials)
+        .await?;
 
     if cancelled {
         printer.success(&format!("Order cancelled on {}", args.exchange));
     } else {
-        printer.info(&format!("Order not found or already cancelled on {}", args.exchange));
+        printer.info(&format!(
+            "Order not found or already cancelled on {}",
+            args.exchange
+        ));
     }
 
     Ok(())
 }
 
-async fn cancel_all(args: OrderCancelAllArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn cancel_all(
+    args: OrderCancelAllArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
 
     if settings.trading.dry_run {
-        printer.dry_run(&format!(
-            "Would cancel all orders on {}",
-            args.exchange
-        ));
+        printer.dry_run(&format!("Would cancel all orders on {}", args.exchange));
         return Ok(());
     }
 
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     info!("Canceling all orders on {}", args.exchange);
 
-    let result = client.cancel_all_orders(&args.exchange, args.symbol.as_deref(), credentials).await?;
+    let result = client
+        .cancel_all_orders(&args.exchange, args.symbol.as_deref(), credentials)
+        .await?;
 
     printer.success(&result.message);
 
@@ -272,13 +354,25 @@ async fn cancel_all(args: OrderCancelAllArgs, settings: &AppConfig, format: Outp
 async fn list_open(args: OrderOpenArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
     let printer = Printer::new(format);
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     info!("Fetching open orders from {}", args.exchange);
 
-    let orders = client.get_orders(&args.exchange, args.symbol.as_deref(), credentials).await?;
+    let orders = client
+        .get_orders(&args.exchange, args.symbol.as_deref(), credentials)
+        .await?;
 
-    printer.info(&format!("Found {} open order(s) on {}", orders.len(), args.exchange));
+    printer.info(&format!(
+        "Found {} open order(s) on {}",
+        orders.len(),
+        args.exchange
+    ));
     printer.print_list(&orders);
 
     Ok(())
@@ -286,10 +380,16 @@ async fn list_open(args: OrderOpenArgs, settings: &AppConfig, format: OutputForm
 
 async fn place_dca(args: OrderDcaArgs, settings: &AppConfig) -> Result<()> {
     if !args.buy && !args.sell {
-        return Err(TtcError::InvalidOrder("Must specify --buy or --sell".into()));
+        return Err(TtcError::InvalidOrder(
+            "Must specify --buy or --sell".into(),
+        ));
     }
 
-    let side = if args.buy { OrderSide::Buy } else { OrderSide::Sell };
+    let side = if args.buy {
+        OrderSide::Buy
+    } else {
+        OrderSide::Sell
+    };
     let side_label = if args.buy { "BUY" } else { "SELL" };
     let min_usd = settings.trading.min_usd_entry;
 
@@ -298,22 +398,35 @@ async fn place_dca(args: OrderDcaArgs, settings: &AppConfig) -> Result<()> {
     let level_usd = args.amount / levels as f64;
 
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     // Fetch current price if not provided
     let base_price = if let Some(p) = args.start_price {
         p
     } else {
-        let ticker_params = GetTickersParams { symbol: Some(args.symbol.clone()) };
-        let tickers = client.get_tickers(&args.exchange, ticker_params, credentials.clone()).await?;
-        tickers.iter()
+        let ticker_params = GetTickersParams {
+            symbol: Some(args.symbol.clone()),
+        };
+        let tickers = client
+            .get_tickers(&args.exchange, ticker_params, credentials.clone())
+            .await?;
+        tickers
+            .iter()
             .find(|t| t.symbol.to_uppercase() == args.symbol.to_uppercase())
             .ok_or_else(|| TtcError::InvalidOrder(format!("Symbol {} not found", args.symbol)))?
             .last_price
     };
 
     if base_price <= 0.0 {
-        return Err(TtcError::InvalidOrder("Got zero price from exchange".into()));
+        return Err(TtcError::InvalidOrder(
+            "Got zero price from exchange".into(),
+        ));
     }
 
     let price_factor = 10f64.powi(args.price_decimals as i32);
@@ -321,9 +434,18 @@ async fn place_dca(args: OrderDcaArgs, settings: &AppConfig) -> Result<()> {
     let step = args.distance / 100.0;
 
     println!();
-    println!("  DCA Ladder — {} {} on {}", args.symbol, side_label, args.exchange);
-    println!("  Amount:  ${:.2} total  |  Levels: {}  |  Per level: ${:.2}", args.amount, levels, level_usd);
-    println!("  Base:    ${:.4}  |  Step: {:.2}% per level  |  Min entry: ${:.2}", base_price, args.distance, min_usd);
+    println!(
+        "  DCA Ladder — {} {} on {}",
+        args.symbol, side_label, args.exchange
+    );
+    println!(
+        "  Amount:  ${:.2} total  |  Levels: {}  |  Per level: ${:.2}",
+        args.amount, levels, level_usd
+    );
+    println!(
+        "  Base:    ${:.4}  |  Step: {:.2}% per level  |  Min entry: ${:.2}",
+        base_price, args.distance, min_usd
+    );
     println!("  ─────────────────────────────────────────────────────");
     println!();
 
@@ -335,7 +457,14 @@ async fn place_dca(args: OrderDcaArgs, settings: &AppConfig) -> Result<()> {
                 (base_price * (1.0 + step).powi(n as i32) * price_factor).floor() / price_factor
             };
             let qty = (level_usd / price * qty_factor).floor() / qty_factor;
-            println!("  DRY-RUN  Level {}/{}  Price: ${:.4}  Qty: {}  Cost: ~${:.2}", n + 1, levels, price, qty, level_usd);
+            println!(
+                "  DRY-RUN  Level {}/{}  Price: ${:.4}  Qty: {}  Cost: ~${:.2}",
+                n + 1,
+                levels,
+                price,
+                qty,
+                level_usd
+            );
         }
         println!();
         return Ok(());
@@ -354,13 +483,18 @@ async fn place_dca(args: OrderDcaArgs, settings: &AppConfig) -> Result<()> {
 
         let qty = (level_usd / price * qty_factor).floor() / qty_factor;
         if qty <= 0.0 {
-            println!("  [{}/{}]  SKIP — qty rounds to zero at ${:.4}", n + 1, levels, price);
+            println!(
+                "  [{}/{}]  SKIP — qty rounds to zero at ${:.4}",
+                n + 1,
+                levels,
+                price
+            );
             continue;
         }
 
         let params = LimitOrderParams {
             symbol: args.symbol.clone(),
-            side: side.clone(),
+            side,
             quantity: qty,
             price,
             position_side: None,
@@ -368,15 +502,31 @@ async fn place_dca(args: OrderDcaArgs, settings: &AppConfig) -> Result<()> {
             reduce_only: None,
             take_profit_price: None,
             stop_loss_price: None,
-            client_order_id: Some(format!("dca-{}-{}-{}", args.symbol.to_lowercase(), n + 1, levels)),
+            client_order_id: Some(format!(
+                "dca-{}-{}-{}",
+                args.symbol.to_lowercase(),
+                n + 1,
+                levels
+            )),
         };
 
-        match client.place_limit_order(&args.exchange, params, credentials.clone()).await {
+        match client
+            .place_limit_order(&args.exchange, params, credentials.clone())
+            .await
+        {
             Ok(order) => {
                 placed += 1;
                 total_cost += level_usd;
                 total_qty += qty;
-                println!("  [{}/{}]  Price: ${:.4}  Qty: {}  Cost: ~${:.2}  Order: {}", n + 1, levels, price, qty, level_usd, order.order_id);
+                println!(
+                    "  [{}/{}]  Price: ${:.4}  Qty: {}  Cost: ~${:.2}  Order: {}",
+                    n + 1,
+                    levels,
+                    price,
+                    qty,
+                    level_usd,
+                    order.order_id
+                );
             }
             Err(e) => {
                 println!("  [{}/{}]  ERROR: {} — skipping level", n + 1, levels, e);
@@ -387,9 +537,15 @@ async fn place_dca(args: OrderDcaArgs, settings: &AppConfig) -> Result<()> {
     println!();
     println!("  ─────────────────────────────────────────────────────");
     println!("  DCA complete — {}/{} levels placed", placed, levels);
-    println!("  Total allocated: ${:.2}  |  Total qty: {}  |  Avg price: ${:.4}",
-        total_cost, total_qty,
-        if total_qty > 0.0 { total_cost / total_qty } else { 0.0 }
+    println!(
+        "  Total allocated: ${:.2}  |  Total qty: {}  |  Avg price: ${:.4}",
+        total_cost,
+        total_qty,
+        if total_qty > 0.0 {
+            total_cost / total_qty
+        } else {
+            0.0
+        }
     );
     println!();
 

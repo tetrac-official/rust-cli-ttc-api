@@ -2,10 +2,14 @@
 
 use crate::cli::*;
 use crate::config::{AppConfig, ExchangeCredentialConfig};
-use crate::output::{OutputFormat, Printer};
 use crate::error::Result;
+use crate::output::{OutputFormat, Printer};
 
-pub async fn execute(cmd: ConfigCommands, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+pub async fn execute(
+    cmd: ConfigCommands,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     match cmd.command {
         ConfigSubcommands::Init => init_config(format).await,
         ConfigSubcommands::Show => show_config(settings, format).await,
@@ -22,21 +26,26 @@ async fn init_config(format: OutputFormat) -> Result<()> {
     let config_path = AppConfig::default_config_path();
 
     if config_path.exists() {
-        printer.warning(&format!("Config file already exists at: {}", config_path.display()));
+        printer.warning(&format!(
+            "Config file already exists at: {}",
+            config_path.display()
+        ));
         printer.info("Use 'config show' to view current config");
         return Ok(());
     }
 
     if let Some(parent) = config_path.parent() {
         if !parent.exists() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| crate::error::TtcError::Config(format!("Failed to create config directory: {}", e)))?;
+            std::fs::create_dir_all(parent).map_err(|e| {
+                crate::error::TtcError::Config(format!("Failed to create config directory: {}", e))
+            })?;
         }
     }
 
     let default_settings = AppConfig::default();
-    let contents = toml::to_string_pretty(&default_settings)
-        .map_err(|e| crate::error::TtcError::Config(format!("Failed to serialize config: {}", e)))?;
+    let contents = toml::to_string_pretty(&default_settings).map_err(|e| {
+        crate::error::TtcError::Config(format!("Failed to serialize config: {}", e))
+    })?;
 
     std::fs::write(&config_path, contents)
         .map_err(|e| crate::error::TtcError::Config(format!("Failed to write config: {}", e)))?;
@@ -77,8 +86,14 @@ async fn show_config(settings: &AppConfig, format: OutputFormat) -> Result<()> {
     println!();
 
     println!("  Trading Settings:");
-    println!("   Default Exchange: {}", settings.exchange.as_deref().unwrap_or("none"));
-    println!("   Default Leverage: {}x", settings.trading.default_leverage);
+    println!(
+        "   Default Exchange: {}",
+        settings.exchange.as_deref().unwrap_or("none")
+    );
+    println!(
+        "   Default Leverage: {}x",
+        settings.trading.default_leverage
+    );
     println!("   Confirm Orders: {}", settings.trading.confirm_orders);
     println!("   Dry Run: {}", settings.trading.dry_run);
     println!();
@@ -101,18 +116,19 @@ async fn set_default(args: ConfigSetDefaultArgs, format: OutputFormat) -> Result
     let printer = Printer::new(format);
     let config_path = AppConfig::discover_config_path();
 
-    let mut config = AppConfig::load_from_file(&Some(config_path.clone()))
-        .unwrap_or_default();
+    let mut config = AppConfig::load_from_file(&Some(config_path.clone())).unwrap_or_default();
 
     config.exchange = Some(args.exchange.clone());
 
-    let contents = toml::to_string_pretty(&config)
-        .map_err(|e| crate::error::TtcError::Config(format!("Failed to serialize config: {}", e)))?;
+    let contents = toml::to_string_pretty(&config).map_err(|e| {
+        crate::error::TtcError::Config(format!("Failed to serialize config: {}", e))
+    })?;
 
     if let Some(parent) = config_path.parent() {
         if !parent.exists() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| crate::error::TtcError::Config(format!("Failed to create config dir: {}", e)))?;
+            std::fs::create_dir_all(parent).map_err(|e| {
+                crate::error::TtcError::Config(format!("Failed to create config dir: {}", e))
+            })?;
         }
     }
 
@@ -134,18 +150,30 @@ async fn add_exchange(args: ConfigAddExchangeArgs, format: OutputFormat) -> Resu
         passphrase: args.passphrase.clone(),
     };
 
-    printer.success(&format!("Exchange '{}' would be added to config", args.exchange));
+    printer.success(&format!(
+        "Exchange '{}' would be added to config",
+        args.exchange
+    ));
     printer.info("Note: Configuration changes require manual editing of the config file or environment variables.");
-    printer.warning("Credentials stored locally. Consider using environment variables for production.");
+    printer.warning(
+        "Credentials stored locally. Consider using environment variables for production.",
+    );
 
     Ok(())
 }
 
-async fn remove_exchange(args: ConfigRmExchangeArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn remove_exchange(
+    args: ConfigRmExchangeArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
 
     if settings.exchanges.contains_key(&args.exchange) {
-        printer.success(&format!("Exchange '{}' would be removed from config", args.exchange));
+        printer.success(&format!(
+            "Exchange '{}' would be removed from config",
+            args.exchange
+        ));
         printer.info("Note: Configuration changes require manual editing of the config file.");
     } else {
         printer.warning(&format!("Exchange '{}' not found in config", args.exchange));

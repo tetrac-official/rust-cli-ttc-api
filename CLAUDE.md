@@ -60,7 +60,7 @@ Config file is discovered in order: `--config` flag → `TTC_CONFIG` env var →
 | `position` | `pos`, `positions` | Get, close, close-all; **PnL breakdown** (`position pnl`) |
 | `account` | `acct` | Balance, leverage, margin mode, hedge mode |
 | `orders` | `o` | Bulk order get/cancel-all |
-| `market` | `m` | Tickers, funding rates, OI, volume snapshot, TTC scanner |
+| `market` | `m` | Tickers, funding rates, OI, volume snapshot, TTC scanner, **price alerts** (`market alert`) |
 | `risk` | — | Stop-loss (`sl`), take-profit (`tp`), trailing stop (`trail`), polling trail watcher (`trail-watch`) |
 | `config` | — | Init, show, path, set-default, add/rm exchange |
 | `login` | `auth` | TTC Box login |
@@ -69,6 +69,9 @@ Config file is discovered in order: `--config` flag → `TTC_CONFIG` env var →
 | `twap` | — | Time-weighted average price position builder (polling loop, market orders, crash recovery) |
 | `twap-slice` | — | **Atomic single slice** — one market order for a fixed USD amount. Designed for `/loop` agent-controlled runs |
 | `status` | — | Ping TTC Box API + verify session token + check exchange credentials → READY / NOT READY. Exits 1 if not ready. |
+| `brief` | `morning`, `mb` | Morning market brief: session check + watchlist prices + signals + portfolio + open orders |
+| `market-maker` | `mm` | Limit-order spread capture loop: enter at best bid/ask, exit at entry ± spread. See `[market-maker]` config for commission. |
+| `info` | `version` | Show binary version and build info |
 
 Market data commands (`hybrid-tickers`, `funding-rates`, `open-interest`, `volume-snapshot`, `scanner`) require no API key.
 
@@ -81,11 +84,13 @@ Market data commands (`hybrid-tickers`, `funding-rates`, `open-interest`, `volum
 ### `risk trail-watch`
 Polling trailing stop — activates once position enters profit, then trails stop at `peak × (1 - trail_pct%)` for longs, `peak × (1 + trail_pct%)` for shorts. Reads actual position side from the exchange and places a SELL stop for long positions, BUY stop for short positions, always `reduce_only`. Cancels and replaces stop only when the new level improves on the previous one. Stops automatically when position closes. Flags: `--trail-pct` (default 2.0%), `--interval` (default 30s).
 
+**Progress file:** writes JSON state to `~/.trail-watch-{symbol}-{exchange}.json` on every tick. Contains `active`, `mark_price`, `peak_price`, `current_stop`, `stop_order_id`, `unrealized_pnl`, `position_size`, and `updated_at`. File is removed when the position closes. An agent can read this file on demand to monitor trail-watch without interrupting the loop.
+
 ### Agentic Loop Trading
 
 Two modes of operation exist for time-based strategies:
 
-**Unattended mode** (`twap`, `risk trail-watch`) — CLI owns the loop internally. Agent launches and goes blind. Good for set-and-forget overnight runs. `twap` writes crash recovery state to `~/.twap-{symbol}-{exchange}.json` after every fill.
+**Unattended mode** (`twap`, `risk trail-watch`) — CLI owns the loop internally. Good for set-and-forget overnight runs. Both write JSON progress files that an agent can read on demand: `twap` writes crash recovery state to `~/.twap-{symbol}-{exchange}.json` after every fill; `trail-watch` writes status to `~/.trail-watch-{symbol}-{exchange}.json` on every tick.
 
 **Agentic mode** (`twap-slice` + `/loop`) — Agent owns the loop via Claude Code's built-in `/loop` scheduler. Agent calls `twap-slice` once per tick, sees every fill, and can react between ticks. The agent must track budget/slice count and cancel the loop when done.
 
@@ -105,15 +110,18 @@ See `skills/skill-loop-trading/SKILL.md` for the full agentic loop protocol.
 
 ## Skills
 
-The `skills/` directory contains six AI agent instruction sets (agentskills.io format):
+The `skills/` directory contains AI agent instruction sets (agentskills.io format):
 
+- **skill-onboarding** — First-run setup and authentication: install check → .env → login/register → exchange credentials → verify READY status
 - **skill-trading** — Core safe-trading protocol: pre-order checklists, order placement rules, output interpretation
 - **skill-shark** — Signal-driven bracketed trade setup (entry + TP1 + TP2), requires R/R ≥ 2.0
 - **skill-market-overview** — BTC/ETH trend + funding sentiment + OI distribution briefing
 - **skill-momentum** — Finds 10%+ movers with volume, scans for signals
 - **skill-signal-patrol** — Scans a fixed watchlist for HIGH confidence R/R ≥ 3.0 setups
 - **skill-loop-trading** — Agent-controlled loop trading via `/loop` + `twap-slice`; agent owns the loop, retains full visibility
+- **skill-twap** — TWAP position builder: splits USD budget into equal slices over time to average entry price and reduce market impact
 - **skill-portfolio-manager** — Portfolio health report (`portfolio summary`): HEALTHY/WATCH/DANGER status, margin utilization, liq distance, position risk thresholds from `[portfolio]` config
+- **skill-market-maker** — Limit-order spread capture loop (`market-maker` / `mm`); enters at best bid/ask, exits at entry ± spread; designed for zero-fee exchanges
 
 `make release` compiles the binary and copies it into `skills/skill-trading/scripts/` for distribution. Each skill folder is self-contained and shareable.
 

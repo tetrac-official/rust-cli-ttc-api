@@ -38,6 +38,10 @@ pub enum Commands {
     /// Check TTC Box connectivity and session validity before starting a loop
     Status,
 
+    /// Morning market brief: session + watchlist prices + signals + portfolio + orders
+    #[command(alias = "morning", alias = "mb")]
+    Brief(BriefArgs),
+
     /// Login to TTC Box with email and passkey
     #[command(alias = "auth")]
     Login(LoginArgs),
@@ -56,6 +60,10 @@ pub enum Commands {
     /// Designed for agent-controlled loops via /loop. Prints result as one line.
     #[command(name = "twap-slice")]
     TwapSlice(TwapSliceArgs),
+
+    /// Market-maker loop: enter at best bid/ask, exit at entry ± spread for each round
+    #[command(name = "market-maker", alias = "mm")]
+    MarketMaker(MarketMakerArgs),
 }
 
 // ============================================================================
@@ -1003,6 +1011,10 @@ pub enum MarketSubcommands {
     /// Fan analysis — entry, stop-loss, and take-profit levels
     #[command(alias = "scan")]
     Scanner(MarketScannerArgs),
+
+    /// Poll price and alert when it crosses defined upper/lower levels
+    #[command(alias = "watch", alias = "al")]
+    Alert(MarketAlertArgs),
 }
 
 #[derive(Debug, Args)]
@@ -1105,9 +1117,13 @@ pub struct MarketVolumeSnapshotArgs {}
 
 #[derive(Debug, Args)]
 pub struct MarketScannerArgs {
-    /// Market symbol to scan (e.g. BTCUSDT)
+    /// Single symbol to scan (e.g. BTCUSDT). Omit to scan the watchlist.
     #[arg(short, long)]
-    pub symbol: String,
+    pub symbol: Option<String>,
+
+    /// Scan multiple symbols (comma-separated). Falls back to config.toml [watchlist] if omitted.
+    #[arg(long, value_delimiter = ',')]
+    pub watchlist: Option<Vec<String>>,
 
     /// Kline timeframe (e.g. 1m, 5m, 1h, 4h, 1d)
     #[arg(short, long, default_value = "1h")]
@@ -1120,6 +1136,41 @@ pub struct MarketScannerArgs {
     /// Lookback period for swing detection
     #[arg(long)]
     pub swing_strength: Option<u32>,
+
+    /// Minimum R/R ratio to include in watchlist results
+    #[arg(long, default_value = "2.0")]
+    pub min_rr: f64,
+
+    /// Show only HIGH confidence signals (watchlist mode)
+    #[arg(long)]
+    pub only_high: bool,
+}
+
+// ============================================================================
+// Market Alert Args
+// ============================================================================
+
+#[derive(Debug, Args)]
+pub struct MarketAlertArgs {
+    /// Symbol to watch (e.g. BTCUSDT, NEARUSDT)
+    #[arg(short, long)]
+    pub symbol: String,
+
+    /// Alert when price rises above this level (breakout)
+    #[arg(long)]
+    pub upper: Option<f64>,
+
+    /// Alert when price falls below this level (breakdown)
+    #[arg(long)]
+    pub lower: Option<f64>,
+
+    /// Poll interval in seconds (default: 30)
+    #[arg(short, long, default_value = "30")]
+    pub interval: u64,
+
+    /// Keep watching after each alert fires (default: stop on first trigger)
+    #[arg(long)]
+    pub continuous: bool,
 }
 
 // ============================================================================
@@ -1324,9 +1375,101 @@ pub struct PortfolioSummaryArgs {
     pub passphrase: Option<String>,
 }
 
+// ============================================================================
+// Brief Command
+// ============================================================================
+
+#[derive(Debug, Args)]
+pub struct BriefArgs {
+    /// Exchange for portfolio and order data
+    #[arg(short, long, env = "TTC_EXCHANGE")]
+    pub exchange: String,
+
+    /// Override watchlist symbols (comma-separated, e.g. NEARUSDT,BTCUSDT)
+    #[arg(long, value_delimiter = ',')]
+    pub watchlist: Option<Vec<String>>,
+
+    /// Timeframe for scanner signals
+    #[arg(long, default_value = "1h")]
+    pub timeframe: String,
+}
+
+// ============================================================================
+// Market Maker Args
+// ============================================================================
+
+#[derive(Debug, Args)]
+pub struct MarketMakerArgs {
+    /// Exchange name (e.g., orderly, bybit)
+    #[arg(short, long, env = "TTC_EXCHANGE")]
+    pub exchange: String,
+
+    /// Trading symbol (e.g., NEARUSDT, BTCUSDT)
+    #[arg(short, long)]
+    pub symbol: String,
+
+    /// Enter on the buy side (place limit at best bid, exit with limit sell at bid + spread)
+    #[arg(long, conflicts_with = "sell")]
+    pub buy: bool,
+
+    /// Enter on the sell side (place limit at best ask, exit with limit buy at ask - spread)
+    #[arg(long, conflicts_with = "buy")]
+    pub sell: bool,
+
+    /// Order quantity (contracts/coins)
+    #[arg(short = 'q', long)]
+    pub quantity: f64,
+
+    /// Exit spread — absolute price offset from entry for the exit limit order (e.g., 1.0 for BTC).
+    /// Ignored when --spread-pct is set.
+    #[arg(long, default_value = "0.0", conflicts_with = "spread_pct")]
+    pub spread: f64,
+
+    /// Exit spread as a percentage of entry price (e.g., 0.1 = 0.1%). Overrides --spread.
+    #[arg(long, default_value = "0.1")]
+    pub spread_pct: f64,
+
+    /// Decimal places to round prices (e.g., 4 → $1.2345)
+    #[arg(long, default_value = "4")]
+    pub price_decimals: u32,
+
+    /// Decimal places to round quantity
+    #[arg(long, default_value = "0")]
+    pub qty_decimals: u32,
+
+    /// How often to poll for order fill status, in milliseconds
+    #[arg(long, default_value = "500")]
+    pub poll_ms: u64,
+
+    /// Cancel unfilled entry after this many seconds (0 = wait forever)
+    #[arg(long, default_value = "60")]
+    pub timeout_secs: u64,
+
+    /// Number of round-trips to run (0 = run until Ctrl-C)
+    #[arg(long, default_value = "0")]
+    pub rounds: u32,
+
+    /// Exchange API key (overrides config)
+    #[arg(long, env = "EXCHANGE_API_KEY")]
+    pub api_key: Option<String>,
+
+    /// Exchange API secret (overrides config)
+    #[arg(long, env = "EXCHANGE_API_SECRET")]
+    pub api_secret: Option<String>,
+
+    /// Exchange API passphrase
+    #[arg(long, env = "EXCHANGE_API_PASSPHRASE")]
+    pub passphrase: Option<String>,
+}
+
 impl ValueEnum for OutputFormat {
     fn value_variants<'a>() -> &'a [Self] {
-        &[OutputFormat::Table, OutputFormat::Json, OutputFormat::Csv, OutputFormat::Quiet]
+        &[
+            OutputFormat::Table,
+            OutputFormat::Json,
+            OutputFormat::Csv,
+            OutputFormat::Quiet,
+        ]
     }
 
     fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {

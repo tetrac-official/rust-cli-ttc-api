@@ -1,8 +1,8 @@
 use colored::Colorize;
 use serde::Serialize;
 
-use crate::models::{Balance, Order, Position, Ticker};
 use super::OutputFormat;
+use crate::models::{Balance, Order, Position, Ticker};
 
 /// Printer helper struct for consistent output formatting
 pub struct Printer {
@@ -184,7 +184,10 @@ impl Tableable for Balance {
             format!("{:.4}", self.balance).bright_green(),
             locked_str
         );
-        println!("   Available: {}", format!("{:.4}", self.available).bright_white());
+        println!(
+            "   Available: {}",
+            format!("{:.4}", self.available).bright_white()
+        );
     }
 
     fn print_csv_header() {
@@ -192,7 +195,10 @@ impl Tableable for Balance {
     }
 
     fn print_csv(&self) {
-        println!("{},{},{},{}", self.asset, self.balance, self.available, self.locked);
+        println!(
+            "{},{},{},{}",
+            self.asset, self.balance, self.available, self.locked
+        );
     }
 
     fn print_quiet(&self) {
@@ -228,7 +234,12 @@ impl Tableable for Ticker {
     fn print_csv(&self) {
         println!(
             "{},{},{},{},{},{}",
-            self.symbol, self.last_price, self.price_change_percent, self.volume, self.high, self.low
+            self.symbol,
+            self.last_price,
+            self.price_change_percent,
+            self.volume,
+            self.high,
+            self.low
         );
     }
 

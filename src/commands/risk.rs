@@ -7,8 +7,49 @@ use crate::config::AppConfig;
 use crate::error::{Result, TtcError};
 use crate::models::*;
 use crate::output::{OutputFormat, Printer};
-use tracing::info;
+use std::path::PathBuf;
 use std::time::Duration;
+use tracing::info;
+
+// ── Trail-watch progress file ────────────────────────────────────────────────
+
+#[derive(Debug, serde::Serialize)]
+struct TrailWatchProgress {
+    symbol: String,
+    exchange: String,
+    position_side: String,
+    active: bool,
+    mark_price: f64,
+    entry_price: f64,
+    peak_price: Option<f64>,
+    trail_pct: f64,
+    current_stop: Option<f64>,
+    stop_order_id: Option<String>,
+    unrealized_pnl: f64,
+    position_size: f64,
+    updated_at: String,
+}
+
+fn trail_watch_path(symbol: &str, exchange: &str) -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+    PathBuf::from(home).join(format!(
+        ".trail-watch-{}-{}.json",
+        symbol.to_lowercase(),
+        exchange.to_lowercase()
+    ))
+}
+
+fn save_trail_watch_progress(progress: &TrailWatchProgress) {
+    let path = trail_watch_path(&progress.symbol, &progress.exchange);
+    if let Ok(json) = serde_json::to_string_pretty(progress) {
+        let _ = std::fs::write(&path, json);
+    }
+}
+
+fn remove_trail_watch_progress(symbol: &str, exchange: &str) {
+    let path = trail_watch_path(symbol, exchange);
+    let _ = std::fs::remove_file(path);
+}
 
 pub async fn execute(cmd: RiskCommands, settings: &AppConfig, format: OutputFormat) -> Result<()> {
     match cmd.command {
@@ -25,14 +66,15 @@ fn find_position(
     position_side: Option<PositionSideArg>,
 ) -> Option<&Position> {
     positions.iter().find(|p| {
-        p.size > 0.0 && position_side.is_none_or(|ps| {
-            let expected = match ps {
-                PositionSideArg::Long => "long",
-                PositionSideArg::Short => "short",
-                PositionSideArg::Both => "both",
-            };
-            p.position_side.to_lowercase() == expected
-        })
+        p.size > 0.0
+            && position_side.is_none_or(|ps| {
+                let expected = match ps {
+                    PositionSideArg::Long => "long",
+                    PositionSideArg::Short => "short",
+                    PositionSideArg::Both => "both",
+                };
+                p.position_side.to_lowercase() == expected
+            })
     })
 }
 
@@ -41,14 +83,26 @@ fn closing_side(pos_side: PositionSide) -> Result<OrderSide> {
     match pos_side {
         PositionSide::Long => Ok(OrderSide::Sell),
         PositionSide::Short => Ok(OrderSide::Buy),
-        PositionSide::Both => Err(TtcError::InvalidPosition("Must specify position side for hedge mode".into())),
+        PositionSide::Both => Err(TtcError::InvalidPosition(
+            "Must specify position side for hedge mode".into(),
+        )),
     }
 }
 
-async fn set_stop_loss(args: RiskStopLossArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn set_stop_loss(
+    args: RiskStopLossArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     if settings.trading.dry_run {
         printer.dry_run(&format!(
@@ -86,7 +140,9 @@ async fn set_stop_loss(args: RiskStopLossArgs, settings: &AppConfig, format: Out
         close_position: None,
     };
 
-    let result = client.place_stop_order(&args.exchange, params, credentials).await?;
+    let result = client
+        .place_stop_order(&args.exchange, params, credentials)
+        .await?;
 
     printer.success(&format!(
         "Stop loss set at {} for {} {} position (qty: {})",
@@ -97,10 +153,20 @@ async fn set_stop_loss(args: RiskStopLossArgs, settings: &AppConfig, format: Out
     Ok(())
 }
 
-async fn set_take_profit(args: RiskTakeProfitArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn set_take_profit(
+    args: RiskTakeProfitArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     if settings.trading.dry_run {
         printer.dry_run(&format!(
@@ -138,7 +204,9 @@ async fn set_take_profit(args: RiskTakeProfitArgs, settings: &AppConfig, format:
         close_position: None,
     };
 
-    let result = client.place_stop_order(&args.exchange, params, credentials).await?;
+    let result = client
+        .place_stop_order(&args.exchange, params, credentials)
+        .await?;
 
     printer.success(&format!(
         "Take profit set at {} for {} {} position (qty: {})",
@@ -149,10 +217,20 @@ async fn set_take_profit(args: RiskTakeProfitArgs, settings: &AppConfig, format:
     Ok(())
 }
 
-async fn set_trailing_stop(args: RiskTrailingStopArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
+async fn set_trailing_stop(
+    args: RiskTrailingStopArgs,
+    settings: &AppConfig,
+    format: OutputFormat,
+) -> Result<()> {
     let printer = Printer::new(format);
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
 
     if settings.trading.dry_run {
         printer.dry_run(&format!(
@@ -204,34 +282,50 @@ async fn set_trailing_stop(args: RiskTrailingStopArgs, settings: &AppConfig, for
         close_position: None,
     };
 
-    let result = client.place_stop_order(&args.exchange, params, credentials).await?;
+    let result = client
+        .place_stop_order(&args.exchange, params, credentials)
+        .await?;
 
     printer.success(&format!(
         "Trailing stop set for {} {} position (trail: {:.2}%, initial stop: {:.4})",
-        args.symbol,
-        position.position_side,
-        args.distance,
-        initial_stop
+        args.symbol, position.position_side, args.distance, initial_stop
     ));
     printer.print(&result);
 
     Ok(())
 }
 
-async fn trail_watch(args: RiskTrailWatchArgs, settings: &AppConfig, _format: OutputFormat) -> Result<()> {
+async fn trail_watch(
+    args: RiskTrailWatchArgs,
+    settings: &AppConfig,
+    _format: OutputFormat,
+) -> Result<()> {
     let client = Client::new(settings)?;
-    let credentials = get_credentials(&args.exchange, args.api_key, args.api_secret, args.passphrase, settings)?;
+    let credentials = get_credentials(
+        &args.exchange,
+        args.api_key,
+        args.api_secret,
+        args.passphrase,
+        settings,
+    )?;
+
+    let progress_path = trail_watch_path(&args.symbol, &args.exchange);
 
     println!();
     println!("  Trail Watch — {} on {}", args.symbol, args.exchange);
     println!("  Trail:    {:.2}%", args.trail_pct);
     println!("  Interval: {}s", args.interval);
+    println!("  State:    {}", progress_path.display());
     println!("  Waiting for position to enter profit before activating...");
     println!("  Press Ctrl+C to stop.");
     println!();
 
     let mut peak: Option<f64> = None;
-    let mut current_stop: Option<f64> = None;
+    let mut current_stop_price: Option<f64> = None;
+    // Track current stop order ID so we can cancel it specifically after placing the new one.
+    // This is the place-then-cancel pattern: new stop is live before old one is removed,
+    // so the position is never unprotected even if a cancel or place call fails.
+    let mut current_stop_order_id: Option<String> = None;
     let mut active = false;
 
     loop {
@@ -243,7 +337,10 @@ async fn trail_watch(args: RiskTrailWatchArgs, settings: &AppConfig, _format: Ou
 
         match position {
             None => {
-                println!("  [trail-watch] No open {} position found — stopping.", args.symbol);
+                println!(
+                    "  [trail-watch] No open {} position found — stopping.",
+                    args.symbol
+                );
                 break;
             }
             Some(pos) => {
@@ -256,32 +353,60 @@ async fn trail_watch(args: RiskTrailWatchArgs, settings: &AppConfig, _format: Ou
                     if pnl > 0.0 {
                         active = true;
                         peak = Some(mark);
-                        println!("  [trail-watch] Position entered profit at ${:.4} — activating trail.", mark);
+                        println!(
+                            "  [trail-watch] Position entered profit at ${:.4} — activating trail.",
+                            mark
+                        );
                     } else {
                         let gap = ((entry - mark) / entry * 100.0).abs();
-                        println!("  [trail-watch] Waiting for profit. Mark: ${:.4}  Entry: ${:.4}  PnL: ${:.2}  Gap: {:.2}%", mark, entry, pnl, gap);
+                        println!(
+                            "  [trail-watch] Waiting for profit. Mark: ${:.4}  Entry: ${:.4}  PnL: ${:.2}  Gap: {:.2}%",
+                            mark, entry, pnl, gap
+                        );
                     }
+
+                    // Write progress even while waiting for activation
+                    save_trail_watch_progress(&TrailWatchProgress {
+                        symbol: args.symbol.clone(),
+                        exchange: args.exchange.clone(),
+                        position_side: pos.position_side.clone(),
+                        active: false,
+                        mark_price: mark,
+                        entry_price: entry,
+                        peak_price: None,
+                        trail_pct: args.trail_pct,
+                        current_stop: None,
+                        stop_order_id: None,
+                        unrealized_pnl: pnl,
+                        position_size: pos.size,
+                        updated_at: chrono::Utc::now().to_rfc3339(),
+                    });
                 }
 
                 if active {
                     let p = peak.get_or_insert(mark);
-                    // Update peak
                     match pos_side {
                         PositionSide::Long | PositionSide::Both => {
-                            if mark > *p { *p = mark; }
+                            if mark > *p {
+                                *p = mark;
+                            }
                         }
                         PositionSide::Short => {
-                            if mark < *p { *p = mark; }
+                            if mark < *p {
+                                *p = mark;
+                            }
                         }
                     }
                     let p = *p;
 
                     let new_stop = match pos_side {
-                        PositionSide::Long | PositionSide::Both => p * (1.0 - args.trail_pct / 100.0),
+                        PositionSide::Long | PositionSide::Both => {
+                            p * (1.0 - args.trail_pct / 100.0)
+                        }
                         PositionSide::Short => p * (1.0 + args.trail_pct / 100.0),
                     };
 
-                    let should_update = match current_stop {
+                    let should_update = match current_stop_price {
                         None => true,
                         Some(prev) => match pos_side {
                             PositionSide::Long | PositionSide::Both => new_stop > prev,
@@ -292,13 +417,10 @@ async fn trail_watch(args: RiskTrailWatchArgs, settings: &AppConfig, _format: Ou
                     println!(
                         "  [trail-watch] Mark: ${:.4}  Peak: ${:.4}  Trail stop: ${:.4}  PnL: ${:.2}{}",
                         mark, p, new_stop, pnl,
-                        if should_update && current_stop.is_some() { "  → updating stop" } else { "" }
+                        if should_update && current_stop_price.is_some() { "  → updating stop" } else { "" }
                     );
 
                     if should_update {
-                        // Cancel existing stop orders and place updated one
-                        let _ = client.cancel_all_orders(&args.exchange, Some(&args.symbol), credentials.clone()).await;
-
                         let stop_side = match pos_side {
                             PositionSide::Long | PositionSide::Both => OrderSide::Sell,
                             PositionSide::Short => OrderSide::Buy,
@@ -317,22 +439,74 @@ async fn trail_watch(args: RiskTrailWatchArgs, settings: &AppConfig, _format: Ou
                             close_position: None,
                         };
 
-                        match client.place_stop_order(&args.exchange, stop_params, credentials.clone()).await {
-                            Ok(_) => {
-                                current_stop = Some(new_stop);
-                                println!("  [trail-watch] Stop order placed at ${:.4}", new_stop);
+                        // ── PLACE-THEN-CANCEL ────────────────────────────────────────────────
+                        // 1. Place the new stop first. If this fails, the old stop stays active
+                        //    and the position is never unprotected.
+                        match client
+                            .place_stop_order(&args.exchange, stop_params, credentials.clone())
+                            .await
+                        {
+                            Ok(new_order) => {
+                                let new_id = new_order.order_id.clone();
+                                println!(
+                                    "  [trail-watch] New stop placed at ${:.4}  (order: {})",
+                                    new_stop, new_id
+                                );
+
+                                // 2. Cancel the previous stop by ID, now that the new one is live.
+                                //    If this fails, both stops exist — harmless; position still protected.
+                                if let Some(old_id) = current_stop_order_id.take() {
+                                    let cancel_params = CancelOrderParams {
+                                        symbol: args.symbol.clone(),
+                                        order_id: Some(old_id.clone()),
+                                        client_order_id: None,
+                                    };
+                                    match client.cancel_order(&args.exchange, cancel_params, credentials.clone()).await {
+                                        Ok(_)  => println!("  [trail-watch] Old stop cancelled  (order: {})", old_id),
+                                        Err(e) => println!("  [trail-watch] Warning: old stop cancel failed ({}): {} — new stop is still active", old_id, e),
+                                    }
+                                }
+
+                                current_stop_price = Some(new_stop);
+                                current_stop_order_id = Some(new_id);
                             }
                             Err(e) => {
-                                println!("  [trail-watch] Warning: failed to place stop: {}", e);
+                                // New stop failed — old stop (if any) is still in place.
+                                println!(
+                                    "  [trail-watch] Warning: failed to place new stop at ${:.4}: {}{}",
+                                    new_stop, e,
+                                    if current_stop_price.is_some() { " — existing stop unchanged" } else { " — no stop active" }
+                                );
                             }
                         }
+                        // ────────────────────────────────────────────────────────────────────
                     }
+
+                    // Write progress on every active tick
+                    save_trail_watch_progress(&TrailWatchProgress {
+                        symbol: args.symbol.clone(),
+                        exchange: args.exchange.clone(),
+                        position_side: pos.position_side.clone(),
+                        active: true,
+                        mark_price: mark,
+                        entry_price: entry,
+                        peak_price: peak,
+                        trail_pct: args.trail_pct,
+                        current_stop: current_stop_price,
+                        stop_order_id: current_stop_order_id.clone(),
+                        unrealized_pnl: pnl,
+                        position_size: pos.size,
+                        updated_at: chrono::Utc::now().to_rfc3339(),
+                    });
                 }
             }
         }
 
         tokio::time::sleep(Duration::from_secs(args.interval)).await;
     }
+
+    // Clean up progress file when position closes
+    remove_trail_watch_progress(&args.symbol, &args.exchange);
 
     Ok(())
 }

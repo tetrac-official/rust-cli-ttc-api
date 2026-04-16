@@ -12,10 +12,18 @@ where
         fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(f, "a string or integer")
         }
-        fn visit_str<E: de::Error>(self, v: &str) -> Result<String, E> { Ok(v.to_owned()) }
-        fn visit_string<E: de::Error>(self, v: String) -> Result<String, E> { Ok(v) }
-        fn visit_i64<E: de::Error>(self, v: i64) -> Result<String, E> { Ok(v.to_string()) }
-        fn visit_u64<E: de::Error>(self, v: u64) -> Result<String, E> { Ok(v.to_string()) }
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<String, E> {
+            Ok(v.to_owned())
+        }
+        fn visit_string<E: de::Error>(self, v: String) -> Result<String, E> {
+            Ok(v)
+        }
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<String, E> {
+            Ok(v.to_string())
+        }
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<String, E> {
+            Ok(v.to_string())
+        }
     }
     deserializer.deserialize_any(StringOrInt)
 }
@@ -32,9 +40,15 @@ where
         fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(f, "a number or a string containing a number")
         }
-        fn visit_f64<E: de::Error>(self, v: f64) -> Result<f64, E> { Ok(v) }
-        fn visit_i64<E: de::Error>(self, v: i64) -> Result<f64, E> { Ok(v as f64) }
-        fn visit_u64<E: de::Error>(self, v: u64) -> Result<f64, E> { Ok(v as f64) }
+        fn visit_f64<E: de::Error>(self, v: f64) -> Result<f64, E> {
+            Ok(v)
+        }
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<f64, E> {
+            Ok(v as f64)
+        }
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<f64, E> {
+            Ok(v as f64)
+        }
         fn visit_str<E: de::Error>(self, v: &str) -> Result<f64, E> {
             v.parse().map_err(de::Error::custom)
         }
@@ -300,7 +314,12 @@ pub struct ApiResponse<T> {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Order {
-    #[serde(default, alias = "id", alias = "order_id", deserialize_with = "deserialize_string_or_int")]
+    #[serde(
+        default,
+        alias = "id",
+        alias = "order_id",
+        deserialize_with = "deserialize_string_or_int"
+    )]
     pub order_id: String,
     #[serde(default)]
     pub symbol: String,
