@@ -187,12 +187,12 @@ Two modes: single symbol or watchlist scan.
 ```
 skill-trading market scanner --symbol <SYM> [--timeframe 1h] [--bars 1000] [--swing-strength 10]
 ```
-Full output: direction, confidence, Gann unit, momentum, stop, TP1-3, R/R, reasoning note.
+Full output: direction, confidence, Vola unit, momentum, stop, TP1-3, R/R, reasoning note.
 
 ```
 NEARUSDT / 1h — LONG HIGH  (strength 79/100)
 Entry:     $1.1940
-Gann unit: $0.000558/bar (1x1)  |  Momentum: +0.000700/bar (flat)  |  Avg range: $0.014500/bar
+Vola unit: $0.000558/bar (1x1)  |  Momentum: +0.000700/bar (flat)  |  Avg range: $0.014500/bar
 Stop Loss: $1.1862  (0.65% risk)
 TP1:       $1.4214  (+19.04%)
 TP2:       $1.8918  (+58.44%)
@@ -245,7 +245,7 @@ Parameters:
 - `--min-rr` — minimum R/R to show as a match (default: 2.0)
 - `--only-high` — filter to HIGH confidence only
 
-> **Gann fan note:** Descending fan lines from a high pivot can project below zero after many bars — this is mathematically correct, not a bug. Use the Gann unit and momentum to assess whether the move is realistic given the timeframe.
+> **Vola fan note:** Descending fan lines from a high pivot can project below zero after many bars — this is mathematically correct, not a bug. Use the Vola unit and momentum to assess whether the move is realistic given the timeframe.
 
 ### Tickers (exchange-specific)
 ```

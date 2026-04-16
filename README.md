@@ -229,7 +229,7 @@ skill-trading market best-bid-ask -e phemex -s BTCUSDT
 ```
 NEARUSDT / 4h — SHORT HIGH  (strength 86/100)
 Entry:     $1.1720
-Gann unit: $0.002344/bar (1x1)  |  Momentum: -0.003988/bar (down)  |  Avg range: $0.021650/bar
+Vola unit: $0.002344/bar (1x1)  |  Momentum: -0.003988/bar (down)  |  Avg range: $0.021650/bar
 Stop Loss: $1.2033  (2.67% risk)
 TP1:       $0.8874  (-24.27%)
 TP2:       $0.5028  (-57.10%)
@@ -238,8 +238,8 @@ R/R:       8.81x
 Note:      bear composite 85.6 (score 76, R/R 8.81) vs opposite 33.1
 ```
 
-The **Gann unit** line shows:
-- `Gann unit` — price movement per bar at the 1x1 fan angle (the base unit for all fan lines)
+The **Vola unit** line shows:
+- `Vola unit` — price movement per bar at the 1x1 fan angle (the base unit for all fan lines)
 - `Momentum` — actual average price change per bar over the last 20 bars (negative = downtrend)
 - `Avg range` — average bar range (high - low) over 20 bars
 

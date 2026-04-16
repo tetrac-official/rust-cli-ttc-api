@@ -468,7 +468,7 @@ fn print_single_scan(result: &ScannerResult, timeframe: &str) {
         let m = &scan.momentum;
         let sign = if m.rise_per_bar >= 0.0 { "+" } else { "" };
         println!(
-            "  Gann unit: ${:.6}/bar (1x1)  |  Momentum: {}{:.6}/bar ({})  |  Avg range: ${:.6}/bar",
+            "  Vola unit: ${:.6}/bar (1x1)  |  Momentum: {}{:.6}/bar ({})  |  Avg range: ${:.6}/bar",
             scan.price_time_ratio, sign, m.rise_per_bar, m.trend_direction, m.avg_range
         );
     }
