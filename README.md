@@ -42,7 +42,9 @@ Place orders, manage positions, scan markets, and control risk. Designed for AI 
 - Rust 1.75+ (`rustc --version`)
 - Cargo (`cargo --version`)
 
-### Build
+### Build : Development
+
+AI agents do not need to proceed with the below commands. Point your agent at `skills/skill-trading/scripts/skill-trading`
 
 ```bash
 # Clone the repository
@@ -65,6 +67,7 @@ Copy the example config and fill in your settings (Default is fine):
 
 ```bash
 cp config.example.toml config.toml
+cp .env.sample .env
 ```
 
 Then use a `.env` file in the working directory for all your exchange account api keys:

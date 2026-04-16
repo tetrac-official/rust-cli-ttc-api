@@ -1,42 +1,14 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Commands
-
+Point your agent at `skills/skill-trading/scripts/skill-trading` and run 
 ```bash
-make build      # debug build → target/debug/skill-trading
-make release    # optimized build + copy binary to skills/skill-trading/scripts/
-make install    # copy to /usr/local/bin (requires make release first)
-make test       # run all tests
-make clippy     # lint
-make fmt        # format with rustfmt
-make dist       # cross-platform builds (darwin-arm64, darwin-x64, linux-x64, windows-x64)
-```
-
-Run a single test:
-```bash
-cargo test <test_name>
-cargo test --lib <module>::<test_name>
+skill-trading info
 ```
 
 ## Architecture
 
 The binary (`skill-trading`) is a multi-exchange trading CLI proxied entirely through the TTC Box API (`https://ttc.box/api/v1`). All exchange operations route through TTC Box — the CLI never calls exchange APIs directly.
 
-### Module Map
-
-| Module | Purpose |
-|--------|---------|
-| `src/main.rs` | Entry point — config loading, logging, CLI dispatch |
-| `src/cli.rs` | All clap command/argument definitions (derives) |
-| `src/api/client.rs` | HTTP client, retry logic, all TTC Box API methods |
-| `src/models.rs` | API request/response DTOs, enums (`OrderSide`, `PositionSide`, etc.) |
-| `src/config.rs` | `AppConfig` struct, config file loading, priority resolution |
-| `src/crypto.rs` | Wallet generation (Ed25519/secp256k1), PBKDF2, AES-256-CBC encryption |
-| `src/commands/` | One file per top-level command group |
-| `src/output/printer.rs` | Format-aware output (table/JSON/CSV/quiet) |
-| `src/error.rs` | `TtcError` enum with retryable classification |
 
 ### Configuration Priority
 
@@ -123,7 +95,7 @@ The `skills/` directory contains AI agent instruction sets (agentskills.io forma
 - **skill-portfolio-manager** — Portfolio health report (`portfolio summary`): HEALTHY/WATCH/DANGER status, margin utilization, liq distance, position risk thresholds from `[portfolio]` config
 - **skill-market-maker** — Limit-order spread capture loop (`market-maker` / `mm`); enters at best bid/ask, exits at entry ± spread; designed for zero-fee exchanges
 
-`make release` compiles the binary and copies it into `skills/skill-trading/scripts/` for distribution. Each skill folder is self-contained and shareable.
+
 
 ## Environment / Credentials
 
@@ -134,3 +106,43 @@ See `.env.sample` for all supported variables. Key ones:
 - Per-exchange slots: `ORDERLY_API_KEY`, `BYBIT_API_KEY`, etc.
 
 Never commit `.env`, `config.toml`, or any file with real credentials.
+
+# Development Only
+
+`make release` compiles the binary and copies it into `skills/skill-trading/scripts/` for distribution. Each skill folder is self-contained and shareable.
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+make build      # debug build → target/debug/skill-trading
+make release    # optimized build + copy binary to skills/skill-trading/scripts/
+make install    # copy to /usr/local/bin (requires make release first)
+make test       # run all tests
+make clippy     # lint
+make fmt        # format with rustfmt
+make dist       # cross-platform builds (darwin-arm64, darwin-x64, linux-x64, windows-x64)
+```
+
+Run a single test:
+```bash
+cargo test <test_name>
+cargo test --lib <module>::<test_name>
+```
+
+
+### Module Map
+
+| Module | Purpose |
+|--------|---------|
+| `src/main.rs` | Entry point — config loading, logging, CLI dispatch |
+| `src/cli.rs` | All clap command/argument definitions (derives) |
+| `src/api/client.rs` | HTTP client, retry logic, all TTC Box API methods |
+| `src/models.rs` | API request/response DTOs, enums (`OrderSide`, `PositionSide`, etc.) |
+| `src/config.rs` | `AppConfig` struct, config file loading, priority resolution |
+| `src/crypto.rs` | Wallet generation (Ed25519/secp256k1), PBKDF2, AES-256-CBC encryption |
+| `src/commands/` | One file per top-level command group |
+| `src/output/printer.rs` | Format-aware output (table/JSON/CSV/quiet) |
+| `src/error.rs` | `TtcError` enum with retryable classification |
+
