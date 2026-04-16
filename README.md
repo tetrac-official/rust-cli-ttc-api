@@ -4,7 +4,7 @@ Execute trading operations on TTC Box across 15+ exchanges.
 
 Place orders, manage positions, scan markets, and control risk. Designed for AI agents and automated trading workflows.
 
-> **First time here?** See [`skills/skill-onboarding/SKILL.md`](./skills/skill-onboarding/SKILL.md) — it walks an agent through the full setup from install to first trade.
+> **First time here?** See [`.claude/skills/skill-onboarding/SKILL.md`](./.claude/skills/skill-onboarding/SKILL.md) — it walks an agent through the full setup from install to first trade.
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-Proprietary-blue.svg)]()
@@ -44,7 +44,7 @@ Place orders, manage positions, scan markets, and control risk. Designed for AI 
 
 ### Build : Development
 
-AI agents do not need to proceed with the below commands. Point your agent at `skills/skill-trading/scripts/skill-trading`
+AI agents do not need to proceed with the below commands. Point your agent at `.claude/skills/skill-trading/scripts/skill-trading`
 
 ```bash
 # Clone the repository
@@ -54,7 +54,7 @@ cd rust-cli-ttc-api
 # Debug build (fast, for development)
 make build
 
-# Release build (optimized + copies binary to skills/skill-trading/scripts/)
+# Release build (optimized + copies binary to .claude/skills/skill-trading/scripts/)
 make release
 
 # Install to /usr/local/bin
@@ -649,11 +649,13 @@ rust-cli-ttc-api/
 │   │   └── market.rs         # All market data commands
 │   └── output/
 │       └── printer.rs        # Formatted output (table, JSON, CSV, quiet)
-├── skills/
+├── .claude/skills/
 │   ├── skill-trading/
 │   │   ├── SKILL.md          # Agent instructions (agentskills.io format)
 │   │   ├── scripts/
-│   │   │   └── skill-trading # Compiled release binary
+│   │   │   ├── skill-trading              # POSIX launcher — execs the right platform binary
+│   │   │   ├── skill-trading-darwin-arm64 # Mach-O, Apple Silicon (dev machine)
+│   │   │   └── skill-trading-linux-x64    # ELF, Linux x86_64 (VPS/Railway/Docker)
 │   │   └── references/
 │   │       └── exchanges.md  # Supported exchanges and credential guide
 │   └── skill-shark/
@@ -684,7 +686,7 @@ This project ships ten [agentskills.io](https://agentskills.io) compatible skill
 | **skill-portfolio-manager** | Portfolio health monitoring: balance + positions → HEALTHY/WATCH/DANGER status with risk thresholds |
 | **skill-market-maker** | Automated limit-order market-making loop: enter at best bid/ask, exit at entry ± spread |
 
-The compiled binary at `skills/skill-trading/scripts/skill-trading` is kept up to date by `make release`. Each skill folder is self-contained and shareable.
+The compiled binaries at `.claude/skills/skill-trading/scripts/` are kept up to date by `make release-all` — run it after **every** change under `src/` so both the macOS arm64 binary (for the dev machine) and the linux-x64 binary (for the VPS) ship together. Each skill folder is self-contained and shareable.
 
 ---
 
@@ -692,7 +694,9 @@ The compiled binary at `skills/skill-trading/scripts/skill-trading` is kept up t
 
 ```bash
 make build      # debug build
-make release    # release build + copies binary to skills/skill-trading/scripts/
+make release    # host-native release → .claude/skills/skill-trading/scripts/skill-trading-<host-suffix>
+make release-linux  # cross-compile linux-x64 via `cross` (requires Docker Desktop running)
+make release-all    # release + release-linux — run this after EVERY source change, before committing
 make install    # release + install to /usr/local/bin
 make test       # run tests
 make clippy     # lint

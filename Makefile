@@ -28,7 +28,7 @@ release:
 	@strip target/release/$(BINARY) 2>/dev/null || true
 	@echo "✅ Done: target/release/$(BINARY)"
 	@ls -lh target/release/$(BINARY)
-	@mkdir -p skills/skill-trading/scripts
+	@mkdir -p .claude/skills/skill-trading/scripts
 	@case "$(TARGET)" in \
 	  aarch64-apple-darwin)       SUFFIX=darwin-arm64 ;; \
 	  x86_64-apple-darwin)        SUFFIX=darwin-x64 ;; \
@@ -36,9 +36,9 @@ release:
 	  aarch64-unknown-linux-gnu)  SUFFIX=linux-arm64 ;; \
 	  *) echo "❌ unknown host target $(TARGET) — add a suffix mapping"; exit 1 ;; \
 	esac; \
-	cp target/release/$(BINARY) skills/skill-trading/scripts/$(BINARY)-$$SUFFIX; \
-	chmod +x skills/skill-trading/scripts/$(BINARY)-$$SUFFIX; \
-	echo "✅ skills/skill-trading/scripts/$(BINARY)-$$SUFFIX updated"
+	cp target/release/$(BINARY) .claude/skills/skill-trading/scripts/$(BINARY)-$$SUFFIX; \
+	chmod +x .claude/skills/skill-trading/scripts/$(BINARY)-$$SUFFIX; \
+	echo "✅ .claude/skills/skill-trading/scripts/$(BINARY)-$$SUFFIX updated"
 
 ## release-linux: Cross-compile Linux x86_64 binary via `cross` (requires Docker running)
 release-linux:
@@ -46,15 +46,15 @@ release-linux:
 	@docker info >/dev/null 2>&1 || { echo "❌ Docker daemon not running. start Docker Desktop first"; exit 1; }
 	@echo "🐧 Cross-compiling linux-x64..."
 	cross build --release --target x86_64-unknown-linux-gnu
-	@mkdir -p skills/skill-trading/scripts
-	@cp target/x86_64-unknown-linux-gnu/release/$(BINARY) skills/skill-trading/scripts/$(BINARY)-linux-x64
-	@chmod +x skills/skill-trading/scripts/$(BINARY)-linux-x64
-	@echo "✅ skills/skill-trading/scripts/$(BINARY)-linux-x64 updated"
+	@mkdir -p .claude/skills/skill-trading/scripts
+	@cp target/x86_64-unknown-linux-gnu/release/$(BINARY) .claude/skills/skill-trading/scripts/$(BINARY)-linux-x64
+	@chmod +x .claude/skills/skill-trading/scripts/$(BINARY)-linux-x64
+	@echo "✅ .claude/skills/skill-trading/scripts/$(BINARY)-linux-x64 updated"
 
 ## release-all: Build every shipped binary (host + linux-x64) and stage the launcher
 release-all: release release-linux
-	@test -x skills/skill-trading/scripts/$(BINARY) || { echo "❌ launcher skills/skill-trading/scripts/$(BINARY) missing"; exit 1; }
-	@echo "✅ shipped:"; ls -lh skills/skill-trading/scripts/ | awk 'NR>1 {print "    "$$NF}'
+	@test -x .claude/skills/skill-trading/scripts/$(BINARY) || { echo "❌ launcher .claude/skills/skill-trading/scripts/$(BINARY) missing"; exit 1; }
+	@echo "✅ shipped:"; ls -lh .claude/skills/skill-trading/scripts/ | awk 'NR>1 {print "    "$$NF}'
 
 ## install: Install binary to $(PREFIX)/bin
 install: release

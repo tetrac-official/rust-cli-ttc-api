@@ -1,13 +1,13 @@
 # CLAUDE.md
 
-Point your agent at `skills/skill-trading/scripts/skill-trading` and run
+Point your agent at `.claude/skills/skill-trading/scripts/skill-trading` and run
 ```bash
 skill-trading info
 ```
 
 ## Which binary to run
 
-`skills/skill-trading/scripts/` ships three files:
+`.claude/skills/skill-trading/scripts/` ships three files:
 
 | File | Purpose |
 |------|---------|
@@ -125,7 +125,16 @@ Never commit `.env`, `config.toml`, or any file with real credentials.
 
 # Development Only
 
-Each skill folder is self-contained and shareable. Before shipping, run `make release-all` to rebuild **both** host-native and linux-x64 binaries in `skills/skill-trading/scripts/`.
+Each skill folder is self-contained and shareable. The shipped binaries live in `.claude/skills/skill-trading/scripts/` and are committed to the repo — the VPS runs the prebuilt `skill-trading-linux-x64` from there.
+
+## Rebuild rule — every source change
+
+**Any edit under `src/` (or `Cargo.toml` / `Cargo.lock`) requires `make release-all` before committing.** Not the first time only — every time. `make release-all` rebuilds both platform binaries into `.claude/skills/skill-trading/scripts/`:
+
+- `skill-trading-darwin-arm64` — host build (cargo)
+- `skill-trading-linux-x64` — cross build (requires Docker Desktop running)
+
+Stage the source change **and** both updated binaries in the same commit. Shipping source without the refreshed linux-x64 binary leaves the VPS on stale code.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -133,9 +142,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 make build          # debug build → target/debug/skill-trading
-make release        # host-native release → skills/skill-trading/scripts/skill-trading-<host-suffix>
+make release        # host-native release → .claude/skills/skill-trading/scripts/skill-trading-<host-suffix>
 make release-linux  # cross-compile linux-x64 via `cross` (requires Docker Desktop running)
-make release-all    # release + release-linux — run this before committing shipped binaries
+make release-all    # release + release-linux — run this after EVERY source change, before committing
 make install        # copy host binary to /usr/local/bin (requires make release first)
 make test           # run all tests
 make clippy         # lint
@@ -143,10 +152,10 @@ make fmt            # format with rustfmt
 make dist           # cross-platform builds (darwin-arm64, darwin-x64, linux-x64, windows-x64)
 ```
 
-First-time cross-compile setup (local dev machine only):
+One-time cross-compile toolchain setup (local dev machine only — run once per machine, not per source change):
 ```bash
 cargo install cross --git https://github.com/cross-rs/cross
-open -a Docker          # Docker Desktop must be running for `make release-linux`
+open -a Docker          # Docker Desktop must be running every time `make release-linux` runs
 ```
 
 Run a single test:
