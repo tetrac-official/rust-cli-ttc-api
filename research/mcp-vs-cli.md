@@ -161,7 +161,7 @@ CLI for the inner dev loop (local, fast, cheap). MCP for the outer orchestration
 - **Composability** — agents can pipe output, combine with shell tools, pass flags dynamically
 - **Model familiarity** — skill documents (SKILL.md) teach the agent the interface for ~800 tokens, not 30,000+
 - **Reliability** — local process, no TCP timeouts
-- **Distribution** — single binary copied to `skills/skill-trading/scripts/` via `make release`
+- **Distribution** — host + linux-x64 binaries copied to `.claude/skills/skill-trading/scripts/` via `make release-all`
 
 The tradeoff accepted: no built-in OAuth/multi-tenant, no structured audit trail. Acceptable for a single-user trading CLI.
 
