@@ -1,4 +1,4 @@
-.PHONY: all build release install uninstall test run clean fmt clippy help
+.PHONY: all build release release-linux release-all install uninstall test run clean fmt clippy help
 
 # Binary name
 BINARY := skill-trading
@@ -21,17 +21,40 @@ build:
 	cargo build $(DEV_FLAGS)
 	@echo "✅ Done: target/debug/$(BINARY)"
 
-## release: Build optimized release binary and copy into skill scripts folder
+## release: Build optimized host-native binary and ship it with a platform suffix
 release:
-	@echo "🚀 Building release binary..."
+	@echo "🚀 Building release binary (host: $(TARGET))..."
 	cargo build $(RELEASE_FLAGS)
 	@strip target/release/$(BINARY) 2>/dev/null || true
 	@echo "✅ Done: target/release/$(BINARY)"
 	@ls -lh target/release/$(BINARY)
 	@mkdir -p skills/skill-trading/scripts
-	@cp target/release/$(BINARY) skills/skill-trading/scripts/$(BINARY)
-	@chmod +x skills/skill-trading/scripts/$(BINARY)
-	@echo "✅ skills/skill-trading/scripts/$(BINARY) updated"
+	@case "$(TARGET)" in \
+	  aarch64-apple-darwin)       SUFFIX=darwin-arm64 ;; \
+	  x86_64-apple-darwin)        SUFFIX=darwin-x64 ;; \
+	  x86_64-unknown-linux-gnu)   SUFFIX=linux-x64 ;; \
+	  aarch64-unknown-linux-gnu)  SUFFIX=linux-arm64 ;; \
+	  *) echo "❌ unknown host target $(TARGET) — add a suffix mapping"; exit 1 ;; \
+	esac; \
+	cp target/release/$(BINARY) skills/skill-trading/scripts/$(BINARY)-$$SUFFIX; \
+	chmod +x skills/skill-trading/scripts/$(BINARY)-$$SUFFIX; \
+	echo "✅ skills/skill-trading/scripts/$(BINARY)-$$SUFFIX updated"
+
+## release-linux: Cross-compile Linux x86_64 binary via `cross` (requires Docker running)
+release-linux:
+	@command -v cross >/dev/null || { echo "❌ cross not installed. run: cargo install cross"; exit 1; }
+	@docker info >/dev/null 2>&1 || { echo "❌ Docker daemon not running. start Docker Desktop first"; exit 1; }
+	@echo "🐧 Cross-compiling linux-x64..."
+	cross build --release --target x86_64-unknown-linux-gnu
+	@mkdir -p skills/skill-trading/scripts
+	@cp target/x86_64-unknown-linux-gnu/release/$(BINARY) skills/skill-trading/scripts/$(BINARY)-linux-x64
+	@chmod +x skills/skill-trading/scripts/$(BINARY)-linux-x64
+	@echo "✅ skills/skill-trading/scripts/$(BINARY)-linux-x64 updated"
+
+## release-all: Build every shipped binary (host + linux-x64) and stage the launcher
+release-all: release release-linux
+	@test -x skills/skill-trading/scripts/$(BINARY) || { echo "❌ launcher skills/skill-trading/scripts/$(BINARY) missing"; exit 1; }
+	@echo "✅ shipped:"; ls -lh skills/skill-trading/scripts/ | awk 'NR>1 {print "    "$$NF}'
 
 ## install: Install binary to $(PREFIX)/bin
 install: release

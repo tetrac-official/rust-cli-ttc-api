@@ -110,7 +110,7 @@ When you registered via email, TTC Box generated a random keypair for `TTC_PUBLI
 ORDERLY_MAIN_WALLET_ADDRESS=<base58 Solana address, ~44 chars>
 ```
 
-The user can find this address in their Orderly Network dashboard under Account settings.
+This is your web3 MAIN wallet address thats signs transaction such as deposit and withdrawal.
 
 ---
 
