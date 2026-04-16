@@ -1,9 +1,25 @@
 # CLAUDE.md
 
-Point your agent at `skills/skill-trading/scripts/skill-trading` and run 
+Point your agent at `skills/skill-trading/scripts/skill-trading` and run
 ```bash
 skill-trading info
 ```
+
+## Which binary to run
+
+`skills/skill-trading/scripts/` ships three files:
+
+| File | Purpose |
+|------|---------|
+| `skill-trading` | POSIX launcher — detects `uname -s`/`-m` and execs the right binary. **Always call this one.** |
+| `skill-trading-darwin-arm64` | Mach-O, Apple Silicon (M1/M2/M3). Used on the local dev machine. |
+| `skill-trading-linux-x64` | ELF, Linux x86_64. Used on VPS / Railway / Docker. |
+
+**Rules for the agent:**
+- Always invoke `skill-trading` (the launcher), never a platform-suffixed binary directly — keeps commands portable across dev machine and VPS.
+- Never run `cargo build`, `make release`, or `make release-linux` on a VPS. The VPS has no Rust toolchain and no Docker. It runs the prebuilt binary that was committed to the repo.
+- If the launcher errors with `binary for <OS>-<ARCH> not bundled`, the repo is missing that platform's build — rebuild locally with `make release-all` and commit, don't try to build on the VPS.
+- `uname -m` returns `arm64` on macOS and `aarch64` on Linux — the launcher already handles both; don't special-case in callers.
 
 ## Architecture
 
@@ -109,20 +125,28 @@ Never commit `.env`, `config.toml`, or any file with real credentials.
 
 # Development Only
 
-`make release` compiles the binary and copies it into `skills/skill-trading/scripts/` for distribution. Each skill folder is self-contained and shareable.
+Each skill folder is self-contained and shareable. Before shipping, run `make release-all` to rebuild **both** host-native and linux-x64 binaries in `skills/skill-trading/scripts/`.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Commands
 
 ```bash
-make build      # debug build → target/debug/skill-trading
-make release    # optimized build + copy binary to skills/skill-trading/scripts/
-make install    # copy to /usr/local/bin (requires make release first)
-make test       # run all tests
-make clippy     # lint
-make fmt        # format with rustfmt
-make dist       # cross-platform builds (darwin-arm64, darwin-x64, linux-x64, windows-x64)
+make build          # debug build → target/debug/skill-trading
+make release        # host-native release → skills/skill-trading/scripts/skill-trading-<host-suffix>
+make release-linux  # cross-compile linux-x64 via `cross` (requires Docker Desktop running)
+make release-all    # release + release-linux — run this before committing shipped binaries
+make install        # copy host binary to /usr/local/bin (requires make release first)
+make test           # run all tests
+make clippy         # lint
+make fmt            # format with rustfmt
+make dist           # cross-platform builds (darwin-arm64, darwin-x64, linux-x64, windows-x64)
+```
+
+First-time cross-compile setup (local dev machine only):
+```bash
+cargo install cross --git https://github.com/cross-rs/cross
+open -a Docker          # Docker Desktop must be running for `make release-linux`
 ```
 
 Run a single test:
