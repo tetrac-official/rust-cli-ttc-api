@@ -45,9 +45,6 @@ pub enum TtcError {
 
 impl TtcError {
     pub fn is_retryable(&self) -> bool {
-        matches!(self, 
-            TtcError::Request(_) | 
-            TtcError::RateLimited(_)
-        )
+        matches!(self, TtcError::Request(_) | TtcError::RateLimited(_))
     }
 }

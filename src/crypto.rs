@@ -54,7 +54,10 @@ pub fn generate_solana_keypair() -> SolanaKeypair {
     full_kp[32..].copy_from_slice(&pub_bytes);
     let secret_key_hex = hex::encode(full_kp);
 
-    SolanaKeypair { public_key, secret_key_hex }
+    SolanaKeypair {
+        public_key,
+        secret_key_hex,
+    }
 }
 
 /// Generate a new secp256k1 private key and derive its Ethereum address.
@@ -62,13 +65,16 @@ pub fn generate_evm_wallet() -> EvmWallet {
     let secret = EcSecretKey::random(&mut OsRng);
     let pubkey = secret.public_key();
     let point = pubkey.to_encoded_point(false); // uncompressed: 0x04 || x(32) || y(32)
-    let pub_bytes = &point.as_bytes()[1..];     // drop 0x04 prefix → 64 bytes
+    let pub_bytes = &point.as_bytes()[1..]; // drop 0x04 prefix → 64 bytes
 
     let hash = Keccak256::digest(pub_bytes);
     let address = format!("0x{}", hex::encode(&hash[12..])); // last 20 bytes
     let private_key = format!("0x{}", hex::encode(secret.to_bytes()));
 
-    EvmWallet { address, private_key }
+    EvmWallet {
+        address,
+        private_key,
+    }
 }
 
 // ============================================================================

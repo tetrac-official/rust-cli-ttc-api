@@ -19,7 +19,9 @@ pub fn get_credentials(
     // instead of the ttc-public-key (which may be a random key for email-registered users).
     // Set ORDERLY_MAIN_WALLET_ADDRESS in .env to enable this.
     let wallet_address = if exchange.to_lowercase() == "orderly" {
-        std::env::var("ORDERLY_MAIN_WALLET_ADDRESS").ok().filter(|s| !s.is_empty())
+        std::env::var("ORDERLY_MAIN_WALLET_ADDRESS")
+            .ok()
+            .filter(|s| !s.is_empty())
     } else {
         None
     };
@@ -32,9 +34,9 @@ pub fn get_credentials(
             wallet_address,
         }),
         _ => {
-            let creds = settings.get_credentials(exchange).ok_or_else(|| {
-                TtcError::MissingCredentials(exchange.to_string())
-            })?;
+            let creds = settings
+                .get_credentials(exchange)
+                .ok_or_else(|| TtcError::MissingCredentials(exchange.to_string()))?;
             Ok(ExchangeCredentials {
                 api_key: creds.api_key,
                 api_secret: creds.api_secret,

@@ -14,7 +14,9 @@ fn test_help_output() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Execute trading operations on TTC Box"));
+        .stdout(predicate::str::contains(
+            "Execute trading operations on TTC Box",
+        ));
 }
 
 #[test]
@@ -49,7 +51,9 @@ fn test_config_path_command() {
 fn test_order_requires_buy_or_sell() {
     // Should fail because neither --buy nor --sell specified
     cmd()
-        .args(["order", "market", "-e", "phemex", "-s", "BTCUSDT", "-q", "0.001"])
+        .args([
+            "order", "market", "-e", "phemex", "-s", "BTCUSDT", "-q", "0.001",
+        ])
         .assert()
         .failure()
         .stderr(predicate::str::contains("Must specify --buy or --sell"));
@@ -58,7 +62,9 @@ fn test_order_requires_buy_or_sell() {
 #[test]
 fn test_order_limit_requires_buy_or_sell() {
     cmd()
-        .args(["order", "limit", "-e", "phemex", "-s", "BTCUSDT", "-q", "0.001", "-p", "50000"])
+        .args([
+            "order", "limit", "-e", "phemex", "-s", "BTCUSDT", "-q", "0.001", "-p", "50000",
+        ])
         .assert()
         .failure()
         .stderr(predicate::str::contains("Must specify --buy or --sell"));
@@ -86,7 +92,9 @@ fn test_hedge_requires_enable_or_disable() {
 #[test]
 fn test_leverage_zero_rejected() {
     cmd()
-        .args(["account", "leverage", "-e", "phemex", "-s", "BTCUSDT", "-l", "0"])
+        .args([
+            "account", "leverage", "-e", "phemex", "-s", "BTCUSDT", "-l", "0",
+        ])
         .assert()
         .failure()
         .stderr(predicate::str::contains("Leverage must be greater than 0"));
@@ -97,12 +105,17 @@ fn test_dry_run_limit_order() {
     cmd()
         .args([
             "--dry-run",
-            "order", "limit",
-            "-e", "phemex",
-            "-s", "BTCUSDT",
+            "order",
+            "limit",
+            "-e",
+            "phemex",
+            "-s",
+            "BTCUSDT",
             "--buy",
-            "-q", "0.001",
-            "-p", "50000",
+            "-q",
+            "0.001",
+            "-p",
+            "50000",
         ])
         .assert()
         .success()
@@ -115,11 +128,15 @@ fn test_dry_run_market_order() {
     cmd()
         .args([
             "--dry-run",
-            "order", "market",
-            "-e", "phemex",
-            "-s", "BTCUSDT",
+            "order",
+            "market",
+            "-e",
+            "phemex",
+            "-s",
+            "BTCUSDT",
             "--sell",
-            "-q", "0.001",
+            "-q",
+            "0.001",
         ])
         .assert()
         .success()
@@ -130,11 +147,7 @@ fn test_dry_run_market_order() {
 #[test]
 fn test_dry_run_cancel_all() {
     cmd()
-        .args([
-            "--dry-run",
-            "order", "cxl-all",
-            "-e", "phemex",
-        ])
+        .args(["--dry-run", "order", "cxl-all", "-e", "phemex"])
         .assert()
         .success()
         .stdout(predicate::str::contains("DRY-RUN"))
@@ -146,9 +159,12 @@ fn test_dry_run_close_position() {
     cmd()
         .args([
             "--dry-run",
-            "position", "close",
-            "-e", "phemex",
-            "-s", "BTCUSDT",
+            "position",
+            "close",
+            "-e",
+            "phemex",
+            "-s",
+            "BTCUSDT",
         ])
         .assert()
         .success()
@@ -161,10 +177,14 @@ fn test_dry_run_set_leverage() {
     cmd()
         .args([
             "--dry-run",
-            "account", "leverage",
-            "-e", "phemex",
-            "-s", "BTCUSDT",
-            "-l", "20",
+            "account",
+            "leverage",
+            "-e",
+            "phemex",
+            "-s",
+            "BTCUSDT",
+            "-l",
+            "20",
         ])
         .assert()
         .success()
@@ -183,8 +203,5 @@ fn test_output_format_flag() {
 
 #[test]
 fn test_invalid_subcommand() {
-    cmd()
-        .arg("nonexistent")
-        .assert()
-        .failure();
+    cmd().arg("nonexistent").assert().failure();
 }

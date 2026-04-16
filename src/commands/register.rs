@@ -155,7 +155,10 @@ pub async fn execute(args: RegisterArgs, settings: &AppConfig) -> Result<()> {
             .error
             .or(reg_resp.message)
             .unwrap_or_else(|| format!("Registration failed (HTTP {})", status));
-        return Err(TtcError::Api { code: status, message: msg });
+        return Err(TtcError::Api {
+            code: status,
+            message: msg,
+        });
     }
 
     let auth_token = reg_resp.auth_token.unwrap();
@@ -179,20 +182,24 @@ pub async fn execute(args: RegisterArgs, settings: &AppConfig) -> Result<()> {
 fn generate_email() -> String {
     let mut bytes = [0u8; 24];
     rand::thread_rng().fill_bytes(&mut bytes);
-    let random_part = base64::Engine::encode(
-        &base64::engine::general_purpose::URL_SAFE_NO_PAD,
-        bytes,
-    );
+    let random_part =
+        base64::Engine::encode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, bytes);
     let days = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
-        .as_secs() / 86400;
+        .as_secs()
+        / 86400;
     format!("{}@d{}.box", random_part, days)
 }
 
 /// Update .env with TTC session variables only.
 /// Explicitly allowlists what it will touch — all other lines are preserved.
-pub fn update_env_file(email: &str, passkey: &str, auth_token: &str, public_key: &str) -> Result<()> {
+pub fn update_env_file(
+    email: &str,
+    passkey: &str,
+    auth_token: &str,
+    public_key: &str,
+) -> Result<()> {
     let env_path = PathBuf::from(".env");
 
     let existing = if env_path.exists() {
@@ -214,7 +221,10 @@ pub fn update_env_file(email: &str, passkey: &str, auth_token: &str, public_key:
         ("TTC_AUTH_TOKEN", false),
         ("TTC_PUBLIC_KEY", false),
         ("TTC_TOKEN_ISSUED_AT", false),
-    ].iter().cloned().collect();
+    ]
+    .iter()
+    .cloned()
+    .collect();
 
     for line in &mut lines {
         if line.starts_with("TTC_EMAIL=") {
@@ -236,9 +246,15 @@ pub fn update_env_file(email: &str, passkey: &str, auth_token: &str, public_key:
         // All other lines (EXCHANGE_*, TTC_EXCHANGE, etc.) are untouched
     }
 
-    if !found["TTC_EMAIL"] { lines.push(format!("TTC_EMAIL={}", email)); }
-    if !found["TTC_PASSKEY"] { lines.push(format!("TTC_PASSKEY={}", passkey)); }
-    if !found["TTC_AUTH_TOKEN"] { lines.push(format!("TTC_AUTH_TOKEN={}", auth_token)); }
+    if !found["TTC_EMAIL"] {
+        lines.push(format!("TTC_EMAIL={}", email));
+    }
+    if !found["TTC_PASSKEY"] {
+        lines.push(format!("TTC_PASSKEY={}", passkey));
+    }
+    if !found["TTC_AUTH_TOKEN"] {
+        lines.push(format!("TTC_AUTH_TOKEN={}", auth_token));
+    }
     if !found["TTC_PUBLIC_KEY"] && !public_key.is_empty() {
         lines.push(format!("TTC_PUBLIC_KEY={}", public_key));
     }

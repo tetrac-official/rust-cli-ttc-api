@@ -143,6 +143,34 @@ This is more verbose than `trail-watch` but the agent can react to anything — 
 
 ---
 
+## AGENT AS CIRCUIT BREAKER
+
+Because the agent sees every fill price, it is the deviation guard — no CLI flag needed.
+
+On each tick the agent receives:
+```
+SLICE [7/13]  NEARUSDT BUY  Price: $1.05  Qty: 14  Cost: ~$14.98  Order: 20975514391
+```
+
+The agent has the reference price from slice 1 and all subsequent prices in context. It can compute deviation and act:
+
+```
+Slice 1 price:    $1.20  (reference)
+Slice 7 price:    $1.05  → deviation: -12.5%
+
+Agent decision: deviation exceeds 5% threshold → cancel loop, report remaining budget
+```
+
+This is more powerful than any `--max-deviation` flag because:
+- The agent can apply any threshold, not a fixed CLI value
+- It can factor in other signals (portfolio health, scanner direction, funding rate)
+- It can choose to pause rather than abort — e.g. skip this slice and check again next tick
+- It has full context across all ticks, not just the current price sample
+
+**A polling CLI flag can only check price at slice time — it cannot detect moves between polls. The agent running the loop is the real-time circuit breaker.**
+
+---
+
 ## AGENT RULES FOR LOOP TRADING
 
 1. **Always verify balance before starting a loop** — `account balance` first

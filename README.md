@@ -4,11 +4,11 @@ Execute trading operations on TTC Box across 15+ exchanges.
 
 Place orders, manage positions, scan markets, and control risk. Designed for AI agents and automated trading workflows.
 
-> **First time here?** Read [`GETTING_STARTED.md`](./GETTING_STARTED.md) — it walks through the full setup and first trade end-to-end.
+> **First time here?** See [`skills/skill-onboarding/SKILL.md`](./skills/skill-onboarding/SKILL.md) — it walks an agent through the full setup from install to first trade.
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-Proprietary-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)]()
+[![Version](https://img.shields.io/badge/version-0.1.2-green.svg)]()
 
 ---
 
@@ -595,6 +595,11 @@ passphrase = "YOUR_OKX_PASSPHRASE"
 | `account` | `acct` |
 | `orders` | `o` |
 | `market` | `m` |
+| `login` | `auth` |
+| `portfolio` | `port`, `pf` |
+| `brief` | `morning`, `mb` |
+| `market-maker` | `mm` |
+| `info` | `version` |
 | `order open` | `order list`, `order ls` |
 | `order cancel` | `order cxl` |
 | `order cancel-all` | `order cxl-all` |
@@ -609,9 +614,9 @@ passphrase = "YOUR_OKX_PASSPHRASE"
 | `market open-interest` | `market oi` |
 | `market volume-snapshot` | `market vol`, `market vs` |
 | `market scanner` | `market scan` |
+| `market alert` | `market watch`, `market al` |
 | `orders get` | `orders list`, `orders ls` |
 | `orders cancel-all` | `orders cancel-all` |
-| `info` | `version` |
 
 ---
 
@@ -661,10 +666,11 @@ rust-cli-ttc-api/
 
 ## Skills
 
-This project ships six [agentskills.io](https://agentskills.io) compatible skills:
+This project ships ten [agentskills.io](https://agentskills.io) compatible skills:
 
 | Skill | Purpose |
 |-------|---------|
+| **skill-onboarding** | First-run setup and authentication: install check → .env → login/register → verify READY |
 | **skill-trading** | Core safe-trading protocol: pre-order checklists, order placement rules, output interpretation |
 | **skill-shark** | Signal-driven bracketed trade setup (entry + TP1 + TP2), requires R/R ≥ 2.0 |
 | **skill-twap** | TWAP execution guide: calculations, checklist, output interpretation |
@@ -672,6 +678,8 @@ This project ships six [agentskills.io](https://agentskills.io) compatible skill
 | **skill-market-overview** | BTC/ETH trend + funding sentiment + OI distribution briefing |
 | **skill-momentum** | Finds 10%+ movers with volume, scans for signals |
 | **skill-signal-patrol** | Scans a fixed watchlist for HIGH confidence R/R ≥ 3.0 setups |
+| **skill-portfolio-manager** | Portfolio health monitoring: balance + positions → HEALTHY/WATCH/DANGER status with risk thresholds |
+| **skill-market-maker** | Automated limit-order market-making loop: enter at best bid/ask, exit at entry ± spread |
 
 The compiled binary at `skills/skill-trading/scripts/skill-trading` is kept up to date by `make release`. Each skill folder is self-contained and shareable.
 

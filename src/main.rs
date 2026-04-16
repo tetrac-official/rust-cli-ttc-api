@@ -103,7 +103,11 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Initialize logging
-    let log_level = if cli.verbose { Level::DEBUG } else { Level::INFO };
+    let log_level = if cli.verbose {
+        Level::DEBUG
+    } else {
+        Level::INFO
+    };
     FmtSubscriber::builder()
         .with_max_level(log_level)
         .with_target(false)
@@ -143,6 +147,29 @@ async fn main() -> Result<()> {
     // Determine output format
     let format = cli.output_format.unwrap_or(OutputFormat::Table);
 
+    // Auto-refresh TTC session token if ≥ 23 hours old (before any API call)
+    // Skip for commands that don't need auth or that manage auth themselves
+    let skip_refresh = matches!(
+        cli.command,
+        cli::Commands::Login(_) | cli::Commands::Register(_) | cli::Commands::Info | cli::Commands::Config(_)
+    );
+    if !skip_refresh {
+        match commands::login::try_silent_refresh(&settings).await {
+            Ok(true) => {
+                eprintln!("[auto-refresh] TTC session token refreshed.");
+                // Reload fresh token into settings for this invocation
+                settings.api_key = std::env::var("TTC_AUTH_TOKEN").ok();
+                if let Ok(pk) = std::env::var("TTC_PUBLIC_KEY") {
+                    settings.public_key = Some(pk);
+                }
+            }
+            Ok(false) => {} // Token still fresh or credentials unavailable
+            Err(e) => {
+                eprintln!("[auto-refresh] Warning: token refresh failed: {e}");
+            }
+        }
+    }
+
     // Execute command
     let result = match cli.command {
         cli::Commands::Order(cmd) => commands::order::execute(cmd, &settings, format).await,
@@ -163,11 +190,17 @@ async fn main() -> Result<()> {
         cli::Commands::TwapSlice(cmd) => commands::twap_slice::execute(cmd, &settings).await,
         cli::Commands::Portfolio(cmd) => commands::portfolio::execute(cmd, &settings, format).await,
         cli::Commands::Status => commands::status::execute(&settings).await,
+        cli::Commands::Brief(cmd) => commands::brief::execute(cmd, &settings).await,
+        cli::Commands::MarketMaker(cmd) => commands::market_maker::execute(cmd, &settings).await,
     };
 
     // Handle errors
-    if let Err(e) = result {
+    if let Err(ref e) = result {
         eprintln!("{} {}", "Error:".red().bold(), e);
+        // Hint on auth failures: token may have expired between refresh check and API call
+        if let crate::error::TtcError::Api { code: 401, .. } = e {
+            eprintln!("Hint: session token expired. Run `skill-trading login` to refresh.");
+        }
         std::process::exit(1);
     }
 

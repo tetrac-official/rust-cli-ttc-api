@@ -22,4 +22,10 @@ max_margin_utilization = 80.0  # Warn if locked margin / total balance > this %
 min_liq_distance_pct = 10.0   # Warn if any position's liquidation is < this % away
 max_position_notional = 5000.0 # Warn if any single position notional > this USD
 
+[watchlist]
+symbols = ["NEARUSDT", "BTCUSDT", "ETHUSDT"]
+
+[market-maker]
+limit_order_commission = 0.00 # TTC Orderly integration has zero fees on limit orders. Adjust correctly for other exchanges
+min_spread = 0.001 # 10 bps 0.1% percentage
 [exchanges]
