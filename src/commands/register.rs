@@ -25,6 +25,8 @@ use std::path::PathBuf;
 #[serde(rename_all = "camelCase")]
 struct RegisterRequest {
     email: String,
+    #[serde(rename = "pubKey")]
+    public_key: String,
     hashed_passkey: String,
     client_generated_wallets: ClientWallets,
 }
@@ -120,6 +122,7 @@ pub async fn execute(args: RegisterArgs, settings: &AppConfig) -> Result<()> {
 
     let body = RegisterRequest {
         email: email.clone(),
+        public_key: solana_kp.public_key.clone(),
         hashed_passkey,
         client_generated_wallets: client_wallets,
     };
