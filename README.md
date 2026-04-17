@@ -8,7 +8,7 @@ Place orders, manage positions, scan markets, and control risk. Designed for AI 
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-Proprietary-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-0.1.2-green.svg)]()
+[![Version](https://img.shields.io/badge/version-0.1.4-green.svg)]()
 
 ---
 
@@ -225,6 +225,10 @@ skill-trading market tickers -e phemex -s BTCUSDT
 
 # Best bid/ask for a symbol (requires -e)
 skill-trading market best-bid-ask -e phemex -s BTCUSDT
+
+# Price alert — polling watch, fires when price crosses upper/lower
+skill-trading market alert --symbol BTCUSDT --upper 100000 --lower 90000
+skill-trading market alert --symbol NEARUSDT --upper 1.25 --interval 60 --continuous
 ```
 
 #### Scanner Output
@@ -498,6 +502,33 @@ Three checks run concurrently:
 
 Exit code is `0` (READY) or `1` (NOT READY) — use as a gate in shell scripts or agent pre-checks.
 
+### Morning Brief
+
+Single-command pre-session briefing: session check + watchlist prices + scanner signals + portfolio health + open orders.
+
+```bash
+skill-trading brief -e orderly
+skill-trading brief -e orderly --watchlist NEARUSDT,BTCUSDT,SOLUSDT --timeframe 4h
+
+# Aliases
+skill-trading morning -e orderly
+skill-trading mb -e orderly
+```
+
+### Market Maker
+
+Limit-order spread capture loop. Enters at the best bid (or ask) and exits at entry ± spread. Designed for zero-fee exchanges where round-trip commission doesn't eat the spread.
+
+```bash
+# Enter long at best bid, exit at bid + 0.1% — default behaviour
+skill-trading market-maker -e orderly -s NEARUSDT --buy -q 12 --spread-pct 0.1
+
+# Alias
+skill-trading mm -e orderly -s NEARUSDT --buy -q 12
+```
+
+Commission and other tunables live under `[market-maker]` in `config.toml`.
+
 ### Authentication
 
 ```bash
@@ -658,10 +689,7 @@ rust-cli-ttc-api/
 │   │   │   └── skill-trading-linux-x64    # ELF, Linux x86_64 (VPS/Railway/Docker)
 │   │   └── references/
 │   │       └── exchanges.md  # Supported exchanges and credential guide
-│   └── skill-shark/
-│       ├── SKILL.md          # Signal-driven trade setup strategy
-│       └── references/
-│           └── setup-guide.md
+│   └── skill-*/                # One folder per agent skill (see Skills table below)
 ├── Cargo.toml
 ├── Makefile
 └── config.example.toml
@@ -671,7 +699,7 @@ rust-cli-ttc-api/
 
 ## Skills
 
-This project ships ten [agentskills.io](https://agentskills.io) compatible skills:
+This project ships eleven [agentskills.io](https://agentskills.io) compatible skills:
 
 | Skill | Purpose |
 |-------|---------|
@@ -679,6 +707,7 @@ This project ships ten [agentskills.io](https://agentskills.io) compatible skill
 | **skill-trading** | Core safe-trading protocol: pre-order checklists, order placement rules, output interpretation |
 | **skill-shark** | Signal-driven bracketed trade setup (entry + TP1 + TP2), requires R/R ≥ 2.0 |
 | **skill-twap** | TWAP execution guide: calculations, checklist, output interpretation |
+| **skill-dca** | DCA ladder builder — stepped limit orders to scale into longs or shorts at better prices |
 | **skill-loop-trading** | Agent-controlled loop trading via `/loop` + `twap-slice` — agent owns the loop |
 | **skill-market-overview** | BTC/ETH trend + funding sentiment + OI distribution briefing |
 | **skill-momentum** | Finds 10%+ movers with volume, scans for signals |
@@ -737,4 +766,4 @@ Proprietary — TTC Box
 
 ## Author
 
-ttcbox
+ttc.box: Tetrac
