@@ -267,7 +267,7 @@ fn print_portfolio(
     let bal = balances.iter().find(|b| b.asset.to_uppercase() == "USDT");
     let total = bal.map(|b| b.balance).unwrap_or(0.0);
     let avail = bal.map(|b| b.available).unwrap_or(0.0);
-    let locked = bal.map(|b| b.locked).unwrap_or(0.0);
+    let locked = bal.and_then(|b| b.locked).unwrap_or(0.0);
     let util = if total > 0.0 {
         locked / total * 100.0
     } else {
@@ -301,7 +301,8 @@ fn print_portfolio(
         println!("  {}", "─".repeat(70));
 
         for pos in positions {
-            let pnl = pos.unrealized_pnl;
+            let pnl = pos.effective_pnl();
+            let notional = pos.notional.unwrap_or(0.0);
             let pnl_pct = if pos.entry_price > 0.0 {
                 (pos.mark_price - pos.entry_price) / pos.entry_price
                     * 100.0
@@ -313,8 +314,9 @@ fn print_portfolio(
             } else {
                 0.0
             };
-            let liq_dist = if pos.liquidation_price > 0.0 && pos.mark_price > 0.0 {
-                ((pos.mark_price - pos.liquidation_price) / pos.mark_price * 100.0).abs()
+            let liq_price = pos.liquidation_price.unwrap_or(0.0);
+            let liq_dist = if liq_price > 0.0 && pos.mark_price > 0.0 {
+                ((pos.mark_price - liq_price) / pos.mark_price * 100.0).abs()
             } else {
                 100.0
             };
@@ -322,7 +324,7 @@ fn print_portfolio(
             if liq_dist < cfg.min_liq_distance_pct {
                 health = health.max(HealthLevel::Danger);
             }
-            if pos.notional > cfg.max_position_notional {
+            if notional > cfg.max_position_notional {
                 health = health.max(HealthLevel::Watch);
             }
 
@@ -345,7 +347,7 @@ fn print_portfolio(
                 pos.symbol,
                 pos.side.to_uppercase(),
                 pos.leverage,
-                format!("${:.0}", pos.notional),
+                format!("${:.0}", notional),
                 pnl_colored,
                 liq_s,
             );

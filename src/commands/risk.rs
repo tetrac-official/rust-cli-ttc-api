@@ -346,7 +346,7 @@ async fn trail_watch(
             Some(pos) => {
                 let mark = pos.mark_price;
                 let entry = pos.entry_price;
-                let pnl = pos.unrealized_pnl;
+                let pnl = pos.effective_pnl();
                 let pos_side = parse_position_side(&pos.position_side);
 
                 if !active {

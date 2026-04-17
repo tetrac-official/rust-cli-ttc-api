@@ -42,7 +42,7 @@ async fn get_balance(
     let balances = client.get_balance(&args.exchange, credentials).await?;
 
     let total_available: f64 = balances.iter().map(|b| b.available).sum();
-    let total_locked: f64 = balances.iter().map(|b| b.locked).sum();
+    let total_locked: f64 = balances.iter().filter_map(|b| b.locked).sum();
 
     printer.info(&format!(
         "Balance on {} - Available: {:.4}, Locked: {:.4}",

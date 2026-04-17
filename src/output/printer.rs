@@ -123,10 +123,11 @@ impl Tableable for Order {
 
 impl Tableable for Position {
     fn print_table(&self) {
-        let pnl_color = if self.unrealized_pnl >= 0.0 {
-            format!("+${:.2}", self.unrealized_pnl).green()
+        let pnl_val = self.effective_pnl();
+        let pnl_color = if pnl_val >= 0.0 {
+            format!("+${:.2}", pnl_val).green()
         } else {
-            format!("-${:.2}", self.unrealized_pnl.abs()).red()
+            format!("-${:.2}", pnl_val.abs()).red()
         };
 
         println!(
@@ -138,9 +139,13 @@ impl Tableable for Position {
             self.entry_price,
             pnl_color
         );
+        let liq_display = match self.liquidation_price {
+            Some(v) => format!("${:.4}", v),
+            None => "n/a".to_string(),
+        };
         println!(
-            "   Size: {} | Mark: ${:.4} | Liq: ${:.4}",
-            self.size, self.mark_price, self.liquidation_price
+            "   Size: {} | Mark: ${:.4} | Liq: {}",
+            self.size, self.mark_price, liq_display
         );
     }
 
@@ -156,11 +161,11 @@ impl Tableable for Position {
             self.size,
             self.entry_price,
             self.mark_price,
-            self.unrealized_pnl,
+            self.effective_pnl(),
             self.leverage,
-            self.liquidation_price,
-            self.margin_type,
-            self.notional
+            self.liquidation_price.unwrap_or(0.0),
+            self.margin_type.as_deref().unwrap_or(""),
+            self.notional.unwrap_or(0.0)
         );
     }
 
@@ -171,10 +176,9 @@ impl Tableable for Position {
 
 impl Tableable for Balance {
     fn print_table(&self) {
-        let locked_str = if self.locked > 0.0 {
-            format!(" ({} locked)", self.locked).yellow().to_string()
-        } else {
-            String::new()
+        let locked_str = match self.locked {
+            Some(v) if v > 0.0 => format!(" ({} locked)", v).yellow().to_string(),
+            _ => String::new(),
         };
 
         println!(
@@ -197,7 +201,10 @@ impl Tableable for Balance {
     fn print_csv(&self) {
         println!(
             "{},{},{},{}",
-            self.asset, self.balance, self.available, self.locked
+            self.asset,
+            self.balance,
+            self.available,
+            self.locked.unwrap_or(0.0)
         );
     }
 

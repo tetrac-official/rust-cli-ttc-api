@@ -56,6 +56,47 @@ where
     deserializer.deserialize_any(F64OrString)
 }
 
+/// Deserialize an optional f64 that may be missing, null, a number, or a quoted string.
+fn deserialize_opt_f64_or_string<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::{self, Visitor};
+    struct OptF64OrString;
+    impl<'de> Visitor<'de> for OptF64OrString {
+        type Value = Option<f64>;
+        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "a number, a string containing a number, or null")
+        }
+        fn visit_none<E: de::Error>(self) -> Result<Option<f64>, E> {
+            Ok(None)
+        }
+        fn visit_unit<E: de::Error>(self) -> Result<Option<f64>, E> {
+            Ok(None)
+        }
+        fn visit_some<D2: Deserializer<'de>>(self, d: D2) -> Result<Option<f64>, D2::Error> {
+            deserialize_f64_or_string(d).map(Some)
+        }
+        fn visit_f64<E: de::Error>(self, v: f64) -> Result<Option<f64>, E> {
+            Ok(Some(v))
+        }
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<Option<f64>, E> {
+            Ok(Some(v as f64))
+        }
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<Option<f64>, E> {
+            Ok(Some(v as f64))
+        }
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<Option<f64>, E> {
+            if v.is_empty() {
+                Ok(None)
+            } else {
+                v.parse().map(Some).map_err(de::Error::custom)
+            }
+        }
+    }
+    deserializer.deserialize_option(OptF64OrString)
+}
+
 // ============================================================================
 // Enum Types
 // ============================================================================
@@ -351,12 +392,26 @@ pub struct Position {
     pub size: f64,
     pub entry_price: f64,
     pub mark_price: f64,
-    pub pnl: f64,
+    #[serde(default, deserialize_with = "deserialize_opt_f64_or_string")]
+    pub pnl: Option<f64>,
     pub leverage: u32,
-    pub liquidation_price: f64,
-    pub margin_type: String,
-    pub unrealized_pnl: f64,
-    pub notional: f64,
+    #[serde(default, deserialize_with = "deserialize_opt_f64_or_string")]
+    pub liquidation_price: Option<f64>,
+    #[serde(default)]
+    pub margin_type: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_opt_f64_or_string")]
+    pub unrealized_pnl: Option<f64>,
+    #[serde(default, deserialize_with = "deserialize_opt_f64_or_string")]
+    pub notional: Option<f64>,
+}
+
+impl Position {
+    /// Effective PnL for display/aggregation.
+    /// Prefers `pnl` (populated by most exchanges) and falls back to `unrealized_pnl`.
+    /// dYdX returns real value in `pnl` and leaves `unrealizedPnl` null.
+    pub fn effective_pnl(&self) -> f64 {
+        self.pnl.or(self.unrealized_pnl).unwrap_or(0.0)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -366,8 +421,8 @@ pub struct Balance {
     pub balance: f64,
     #[serde(deserialize_with = "deserialize_f64_or_string")]
     pub available: f64,
-    #[serde(deserialize_with = "deserialize_f64_or_string")]
-    pub locked: f64,
+    #[serde(default, deserialize_with = "deserialize_opt_f64_or_string")]
+    pub locked: Option<f64>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

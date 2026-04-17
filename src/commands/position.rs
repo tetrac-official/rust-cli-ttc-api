@@ -45,7 +45,9 @@ async fn pnl_breakdown(args: PositionGetArgs, settings: &AppConfig) -> Result<()
 
     println!();
     for pos in &positions {
-        let pnl = pos.unrealized_pnl;
+        let pnl = pos.effective_pnl();
+        let notional = pos.notional.unwrap_or(0.0);
+        let margin_mode = pos.margin_type.as_deref().unwrap_or("n/a");
         let pnl_pct = if pos.entry_price > 0.0 {
             (pos.mark_price - pos.entry_price) / pos.entry_price
                 * 100.0
@@ -58,16 +60,17 @@ async fn pnl_breakdown(args: PositionGetArgs, settings: &AppConfig) -> Result<()
             0.0
         };
 
-        let distance_to_liq = if pos.liquidation_price > 0.0 && pos.mark_price > 0.0 {
-            ((pos.mark_price - pos.liquidation_price) / pos.mark_price * 100.0).abs()
+        let liq_price = pos.liquidation_price.unwrap_or(0.0);
+        let distance_to_liq = if liq_price > 0.0 && pos.mark_price > 0.0 {
+            ((pos.mark_price - liq_price) / pos.mark_price * 100.0).abs()
         } else {
             0.0
         };
 
         let margin_used = if pos.leverage > 0 {
-            pos.notional / pos.leverage as f64
+            notional / pos.leverage as f64
         } else {
-            pos.notional
+            notional
         };
 
         let pnl_sign = if pnl >= 0.0 { "+" } else { "" };
@@ -81,7 +84,7 @@ async fn pnl_breakdown(args: PositionGetArgs, settings: &AppConfig) -> Result<()
         );
         println!(
             "  Size:          {} units  (${:.2} notional)",
-            pos.size, pos.notional
+            pos.size, notional
         );
         println!("  Entry price:   ${:.4}", pos.entry_price);
         println!(
@@ -94,18 +97,22 @@ async fn pnl_breakdown(args: PositionGetArgs, settings: &AppConfig) -> Result<()
         );
         println!(
             "  Margin used:   ${:.2}  ({}x leverage, {} mode)",
-            margin_used, pos.leverage, pos.margin_type
+            margin_used, pos.leverage, margin_mode
         );
-        println!(
-            "  Liquidation:   ${:.4}  ({:.2}% away)",
-            pos.liquidation_price, distance_to_liq
-        );
+        if let Some(lp) = pos.liquidation_price {
+            println!(
+                "  Liquidation:   ${:.4}  ({:.2}% away)",
+                lp, distance_to_liq
+            );
+        } else {
+            println!("  Liquidation:   n/a");
+        }
         println!();
     }
 
     if positions.len() > 1 {
-        let total_pnl: f64 = positions.iter().map(|p| p.unrealized_pnl).sum();
-        let total_notional: f64 = positions.iter().map(|p| p.notional).sum();
+        let total_pnl: f64 = positions.iter().map(|p| p.effective_pnl()).sum();
+        let total_notional: f64 = positions.iter().filter_map(|p| p.notional).sum();
         let pnl_sign = if total_pnl >= 0.0 { "+" } else { "" };
         println!("  ── TOTAL ──────────────────────────────────────");
         println!("  Positions:     {}", positions.len());
@@ -141,7 +148,7 @@ async fn get_positions(
     if positions.is_empty() {
         printer.info(&format!("No open positions on {}", args.exchange));
     } else {
-        let total_pnl: f64 = positions.iter().map(|p| p.unrealized_pnl).sum();
+        let total_pnl: f64 = positions.iter().map(|p| p.effective_pnl()).sum();
 
         printer.info(&format!(
             "Found {} position(s) on {} (Total PnL: {:.4})",

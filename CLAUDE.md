@@ -155,8 +155,24 @@ make dist           # cross-platform builds (darwin-arm64, darwin-x64, linux-x64
 One-time cross-compile toolchain setup (local dev machine only — run once per machine, not per source change):
 ```bash
 cargo install cross --git https://github.com/cross-rs/cross
-open -a Docker          # Docker Desktop must be running every time `make release-linux` runs
 ```
+
+### Docker (required for `make release-linux` / `make release-all`)
+
+`cross` runs the linux-x64 build inside a container, so the Docker daemon must be up **every** time you cross-compile.
+
+```bash
+docker info >/dev/null 2>&1 && echo ready || echo not-ready   # check status
+open -a Docker                                                 # start Docker Desktop (macOS)
+until docker info >/dev/null 2>&1; do sleep 2; done            # wait until daemon is ready
+```
+
+If `make release-linux` fails with `Docker daemon not running`:
+1. `open -a Docker` to launch Docker Desktop.
+2. Wait for the whale icon in the menu bar to stop animating (~10–30s).
+3. Re-run `make release-linux` (no need to redo `make release` — the darwin binary is unaffected).
+
+Docker Desktop is **only** needed on the local dev machine for cross-compiling. The VPS never builds, so it does not need Docker.
 
 Run a single test:
 ```bash
