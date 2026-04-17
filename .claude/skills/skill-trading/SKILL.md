@@ -140,6 +140,62 @@ Use `position pnl` when you need to assess risk (liquidation distance) or explai
 
 ---
 
+## LEVERAGE MANAGEMENT
+
+Leverage is set **per symbol**, on the exchange, via:
+
+```
+skill-trading account leverage -e <exchange> -s <SYMBOL> -l <N>
+```
+
+Example — set RAVEUSDT to 5× on asterdex:
+```
+skill-trading account leverage -e asterdex -s RAVEUSDT -l 5
+```
+
+### Critical rule — no open position on that symbol
+
+**Exchanges only accept a leverage change when there is no open position on the symbol.** If a position (or even a resting reduce-only stop/TP for that symbol) is open, the call returns an error like `leverage not modified` or `position exists`.
+
+To change leverage on a symbol you already hold:
+
+1. `skill-trading position get -e <exchange>` — confirm the current position
+2. `skill-trading position close -e <exchange> -s <SYMBOL>` (or wait for TP/SL to fill)
+3. `skill-trading orders cancel-all -e <exchange> -s <SYMBOL>` — clear any resting reduce-only orders
+4. `skill-trading account leverage -e <exchange> -s <SYMBOL> -l <N>` — now accepted
+5. Re-enter the position at the new leverage
+
+Open orders that are **not** on the same symbol do not block a leverage change.
+
+### When to set leverage
+
+- **Before the first order** on a new symbol — the exchange default may not match your risk sizing.
+- **After flat** — after closing a position, if you want to re-enter at a different multiplier.
+- **Not mid-position** — see rule above. The only way to "change leverage on an open position" is close → change → reopen, which realizes PnL and incurs fees.
+
+### Pairing with `twap --leverage`
+
+`skill-trading twap` accepts an optional `--leverage <N>` flag. It does two things:
+1. Calls `setLeverage` on the exchange **before slice 1** (same underlying API as `account leverage`).
+2. Uses the value to compute margin-required (`budget / leverage`) for balance checks.
+
+Because step 1 runs before any order is placed, `twap --leverage` only succeeds if the symbol has no open position at the moment of the first tick. If you are adding to an existing position via TWAP, either omit `--leverage` (use whatever the exchange already has set) or close the position first.
+
+### Verifying the current leverage
+
+The leverage in effect for a symbol shows up in the `position pnl` output (`── NEARUSDT BUY 10x ──`). When flat, query the exchange via the TTC Box API (`getPositions` returns leverage even for size=0 on most exchanges), or simply set it explicitly before your next order.
+
+### Per-exchange notes
+
+- **Orderly** — cross margin only; leverage is account-wide, not per-symbol. Setting it changes margin requirements across all open symbols.
+- **Bybit** — per-symbol; isolated vs cross is a separate setting (`account margin-mode`). Set margin mode before leverage.
+- **OKX / Bitget / BloFin** — per-symbol, per-side in hedge mode. In hedge mode you may need to set long and short leverage separately.
+- **Binance / asterdex** — per-symbol; valid range commonly 1–125× but capped by tier based on notional. High leverage on large size will be rejected.
+
+If `account leverage` errors, check `references/troubleshooting.md` or run with `-v` for the raw API response.
+
+---
+
 ## MARKET DATA COMMANDS
 
 These are cross-exchange, public endpoints — no API key required.

@@ -47,6 +47,9 @@ skill-trading twap -e <exchange> -s <SYMBOL> --buy|--sell --budget <USD> --hours
 |------|---------|-------------|
 | `--interval` | `30` | Minutes between each slice |
 | `--slices` | auto | Override slice count (recalculates interval from hours) |
+| `--decimals` | `0` | Quantity decimal precision (`0` = integer like NEAR; `3` = BTC/ETH style). If too low, slice qty rounds to zero and every slice is skipped. |
+| `--leverage` | unset | Sets leverage on the exchange before slice 1 and uses it to compute required margin as `budget / leverage`. See skill-trading SKILL.md § "LEVERAGE MANAGEMENT" — only accepted when the symbol has no open position at the moment of the first tick. |
+| `--resume` | off | Resume a previous TWAP from saved state after a crash |
 | `--dry-run` | off | Preview plan without placing any orders |
 
 ### Auto-Calculation
