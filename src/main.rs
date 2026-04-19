@@ -177,7 +177,6 @@ async fn main() -> Result<()> {
         cli::Commands::Account(cmd) => commands::account::execute(cmd, &settings, format).await,
         cli::Commands::Risk(cmd) => commands::risk::execute(cmd, &settings, format).await,
         cli::Commands::Config(cmd) => commands::config::execute(cmd, &settings, format).await,
-        cli::Commands::Orders(cmd) => commands::orders::execute(cmd, &settings, format).await,
         cli::Commands::Market(cmd) => commands::market::execute(cmd, &settings, format).await,
         cli::Commands::Info => {
             println!("skill-trading v{}", VERSION);

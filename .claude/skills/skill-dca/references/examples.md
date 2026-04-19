@@ -68,7 +68,7 @@ skill-trading order limit -e dydx -s ETHUSDT --sell --price 2516.62 --quantity 0
 
 Verify with:
 ```bash
-skill-trading orders get -e dydx -s ETHUSDT
+skill-trading order open -e dydx -s ETHUSDT
 ```
 
 ---

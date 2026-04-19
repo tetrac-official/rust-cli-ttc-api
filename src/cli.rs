@@ -17,10 +17,6 @@ pub enum Commands {
     #[command(alias = "acct")]
     Account(AccountCommands),
 
-    /// Manage open orders
-    #[command(alias = "o")]
-    Orders(OrdersCommands),
-
     /// Get market data (tickers, best bid/ask)
     #[command(alias = "m")]
     Market(MarketCommands),
@@ -869,107 +865,6 @@ pub struct ConfigAddExchangeArgs {
 pub struct ConfigRmExchangeArgs {
     /// Exchange name to remove
     pub exchange: String,
-}
-
-// ============================================================================
-// Orders Commands
-// ============================================================================
-
-#[derive(Debug, Args)]
-pub struct OrdersCommands {
-    #[command(subcommand)]
-    pub command: OrdersSubcommands,
-}
-
-#[derive(Debug, Subcommand)]
-pub enum OrdersSubcommands {
-    /// Get open orders
-    #[command(alias = "ls", alias = "list")]
-    Get(OrdersGetArgs),
-
-    /// Cancel all orders
-    #[command(alias = "cancel-all")]
-    CancelAll(OrdersCancelAllArgs),
-
-    /// Cancel a specific order
-    Cancel(OrdersCancelArgs),
-}
-
-#[derive(Debug, Args)]
-pub struct OrdersGetArgs {
-    /// Exchange name
-    #[arg(short, long, env = "TTC_EXCHANGE")]
-    pub exchange: String,
-
-    /// Symbol (optional - shows all if not specified)
-    #[arg(short, long)]
-    pub symbol: Option<String>,
-
-    /// Exchange API key
-    #[arg(long, env = "EXCHANGE_API_KEY")]
-    pub api_key: Option<String>,
-
-    /// Exchange API secret
-    #[arg(long, env = "EXCHANGE_API_SECRET")]
-    pub api_secret: Option<String>,
-
-    /// Exchange API passphrase (required by OKX, KuCoin, Orderly, Bitget, BloFin)
-    #[arg(long, env = "EXCHANGE_API_PASSPHRASE")]
-    pub passphrase: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct OrdersCancelAllArgs {
-    /// Exchange name
-    #[arg(short, long, env = "TTC_EXCHANGE")]
-    pub exchange: String,
-
-    /// Symbol (optional - cancels all if not specified)
-    #[arg(short, long)]
-    pub symbol: Option<String>,
-
-    /// Exchange API key
-    #[arg(long, env = "EXCHANGE_API_KEY")]
-    pub api_key: Option<String>,
-
-    /// Exchange API secret
-    #[arg(long, env = "EXCHANGE_API_SECRET")]
-    pub api_secret: Option<String>,
-
-    /// Exchange API passphrase (required by OKX, KuCoin, Orderly, Bitget, BloFin)
-    #[arg(long, env = "EXCHANGE_API_PASSPHRASE")]
-    pub passphrase: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct OrdersCancelArgs {
-    /// Exchange name
-    #[arg(short, long, env = "TTC_EXCHANGE")]
-    pub exchange: String,
-
-    /// Trading symbol
-    #[arg(short, long)]
-    pub symbol: String,
-
-    /// Order ID to cancel
-    #[arg(short = 'o', long)]
-    pub order_id: Option<String>,
-
-    /// Client order ID to cancel
-    #[arg(long)]
-    pub client_order_id: Option<String>,
-
-    /// Exchange API key
-    #[arg(long, env = "EXCHANGE_API_KEY")]
-    pub api_key: Option<String>,
-
-    /// Exchange API secret
-    #[arg(long, env = "EXCHANGE_API_SECRET")]
-    pub api_secret: Option<String>,
-
-    /// Exchange API passphrase (required by OKX, KuCoin, Orderly, Bitget, BloFin)
-    #[arg(long, env = "EXCHANGE_API_PASSPHRASE")]
-    pub passphrase: Option<String>,
 }
 
 // ============================================================================

@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 Point your agent at `.claude/skills/skill-trading/scripts/skill-trading` and run
 ```bash
 skill-trading info
@@ -44,10 +46,9 @@ Config file is discovered in order: `--config` flag → `TTC_CONFIG` env var →
 
 | Command | Aliases | Purpose |
 |---------|---------|---------|
-| `order` | — | Limit, market, stop, take-profit placement; cancel; cancel-all; list open; **DCA ladder** |
+| `order` | — | Limit, market, stop, take-profit placement; `cancel`, `cancel-all`, `open` (list); **DCA ladder** |
 | `position` | `pos`, `positions` | Get, close, close-all; **PnL breakdown** (`position pnl`) |
 | `account` | `acct` | Balance, leverage, margin mode, hedge mode |
-| `orders` | `o` | Bulk order get/cancel-all |
 | `market` | `m` | Tickers, funding rates, OI, volume snapshot, TTC scanner, **price alerts** (`market alert`) |
 | `risk` | — | Stop-loss (`sl`), take-profit (`tp`), trailing stop (`trail`), polling trail watcher (`trail-watch`) |
 | `config` | — | Init, show, path, set-default, add/rm exchange |
@@ -123,20 +124,9 @@ See `.env.sample` for all supported variables. Key ones:
 
 Never commit `.env`, `config.toml`, or any file with real credentials.
 
-# Development Only
-
-Each skill folder is self-contained and shareable. The shipped binaries live in `.claude/skills/skill-trading/scripts/` and are committed to the repo — the VPS runs the prebuilt `skill-trading-linux-x64` from there.
-
 ## Rebuild rule — every source change
 
-**Any edit under `src/` (or `Cargo.toml` / `Cargo.lock`) requires `make release-all` before committing.** Not the first time only — every time. `make release-all` rebuilds both platform binaries into `.claude/skills/skill-trading/scripts/`:
-
-- `skill-trading-darwin-arm64` — host build (cargo)
-- `skill-trading-linux-x64` — cross build (requires Docker Desktop running)
-
-Stage the source change **and** both updated binaries in the same commit. Shipping source without the refreshed linux-x64 binary leaves the VPS on stale code.
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+**Any edit under `src/` (or `Cargo.toml` / `Cargo.lock`) requires `make release-all` before committing.** Not the first time only — every time. Stage the source change **and** both updated binaries in the same commit — shipping source without the refreshed `skill-trading-linux-x64` leaves the VPS on stale code.
 
 ## Commands
 
