@@ -105,7 +105,7 @@ skill-trading position get -e <exchange>
 
 ### 3. Check open orders on the symbol
 ```
-skill-trading orders get -e <exchange>
+skill-trading order open -e <exchange>
 ```
 Flag any existing orders that would collide with the ladder. A prior limit at one of the ladder levels is a duplicate; confirm whether to cancel it or step around it.
 
@@ -210,7 +210,7 @@ DCA math works identically in both directions but the intent differs:
 - **Tick-size aware.** If `--price-decimals` rounds two adjacent rungs to the same price, they'll collide (one may be rejected as a duplicate, or both sit at the same level wasting a rung). Widen the step or use tighter decimals.
 - **Confirm reduce-only intent.** A SELL ladder on an existing long that is *not* `--reduce-only` flips the position once enough size sells. This is almost always a mistake.
 - **Do not run two ladders on the same symbol.** They compete for margin and confuse the fill book.
-- **Cancel cleanly.** `skill-trading orders cancel-all -e <exchange> -s <SYMBOL>` wipes the whole ladder. Use before adjusting a plan mid-flight.
+- **Cancel cleanly.** `skill-trading order cancel-all -e <exchange> -s <SYMBOL>` wipes the whole ladder. Use before adjusting a plan mid-flight.
 
 ---
 
@@ -219,14 +219,14 @@ DCA math works identically in both directions but the intent differs:
 - Do not place a ladder without running the pre-ladder checklist.
 - Do not use `order dca` when you need exactly N rungs unless `amount / min_usd_entry` cleanly equals N — use individual `order limit` calls instead.
 - Do not use `order dca` for scale-out — it has no `--reduce-only` flag. Scale-out ladders must be manual.
-- Do not assume a fill. `orders get` is the source of truth after placement — always refresh before referencing levels.
+- Do not assume a fill. `order open` is the source of truth after placement — always refresh before referencing levels.
 - Do not scale a short up indefinitely. If price keeps running against you, cut. A ladder is not a thesis — it is an execution technique.
 
 ---
 
 ## AFTER PLACING A LADDER
 
-1. `skill-trading orders get -e <exchange> -s <SYMBOL>` — confirm every rung was accepted.
+1. `skill-trading order open -e <exchange> -s <SYMBOL>` — confirm every rung was accepted.
 2. Tell the user which rungs made it in and which (if any) were rejected (usually price-tick or min-qty issues).
 3. Offer to set a paired invalidation stop (for scale-in ladders) via `skill-trading risk sl`.
 4. If the ladder was a scale-in, remind the user that filled rungs will raise their liquidation distance on each fill — monitor.

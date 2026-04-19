@@ -61,7 +61,7 @@ required_margin = (quantity × price) / leverage
 ### Step 4 — Check open orders
 
 ```
-skill-trading orders get
+skill-trading order open
 ```
 
 - Always fetch live — never assume orders from a previous step still exist. They may have been filled, cancelled, or expired.
@@ -89,6 +89,31 @@ skill-trading orders get
   skill-trading market best-bid-ask -e <exchange> --symbol <SYMBOL>
   ```
   Then calculate: `price = bid × 0.99`, `quantity = budget / price`.
+
+---
+
+## LISTING & CANCELLING ORDERS
+
+All order operations live under the `order` group:
+
+| Operation | Command | Aliases |
+|---|---|---|
+| List open orders | `order open` | `order list`, `order ls` |
+| Cancel one order | `order cancel` | `order cxl` |
+| Cancel all orders | `order cancel-all` | `order cxl-all` |
+
+`--symbol` is optional on `open` and `cancel-all` — omit to act across all symbols, pass to scope to one.
+
+**Always list before you cancel.** Use the id returned by `order open` — not the id printed by `order limit` or `order market`.
+
+Placement returns a client-generated id (e.g. dydx `client_id`); the cancel endpoint expects the exchange's canonical order id (e.g. dydx indexer UUID). These differ on several exchanges, so passing the placement id can fail with errors like `Indexer error 400`.
+
+```
+skill-trading order open -e <exchange>                                 # fetch canonical ids
+skill-trading order cancel -e <exchange> -s <SYMBOL> --order-id <id>   # use the id from order open
+```
+
+Do this even when placement just succeeded — never assume the printed id is cancellable.
 
 ---
 
@@ -161,7 +186,7 @@ To change leverage on a symbol you already hold:
 
 1. `skill-trading position get -e <exchange>` — confirm the current position
 2. `skill-trading position close -e <exchange> -s <SYMBOL>` (or wait for TP/SL to fill)
-3. `skill-trading orders cancel-all -e <exchange> -s <SYMBOL>` — clear any resting reduce-only orders
+3. `skill-trading order cancel-all -e <exchange> -s <SYMBOL>` — clear any resting reduce-only orders
 4. `skill-trading account leverage -e <exchange> -s <SYMBOL> -l <N>` — now accepted
 5. Re-enter the position at the new leverage
 
@@ -403,8 +428,8 @@ skill-trading order dca -e orderly -s NEARUSDT --buy --amount 150 -d 1 --dry-run
 **Rules:**
 - Always `--dry-run` first to confirm levels and prices before going live
 - Check available balance — all levels are placed as open limit orders, locking margin
-- Use `orders get` after placing to confirm all levels were accepted
-- Cancel with `orders cancel-all` if you want to clear the ladder
+- Use `order open` after placing to confirm all levels were accepted
+- Cancel with `order cancel-all` if you want to clear the ladder
 
 ---
 
@@ -534,6 +559,6 @@ Output:
 - Do not guess the current price — always fetch it.
 - Do not place duplicate orders without confirming with the user.
 - Do not use market orders unless the user explicitly requests it — prefer limit orders.
-- **Do not assume orders still exist** — always call `orders get` before referencing open orders. Orders may have been filled, cancelled, or expired since they were last placed.
+- **Do not assume orders still exist** — always call `order open` before referencing open orders. Orders may have been filled, cancelled, or expired since they were last placed.
 - **Do not assume positions are unchanged** — always call `position get` for the current state before making decisions based on a position.
 - **Do not assume balance is the same** — always re-fetch before placing new orders, especially after fills or PnL changes.

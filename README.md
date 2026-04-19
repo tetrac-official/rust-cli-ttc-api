@@ -627,7 +627,6 @@ passphrase = "YOUR_OKX_PASSPHRASE"
 |-------------|---------|
 | `position` | `positions`, `pos` |
 | `account` | `acct` |
-| `orders` | `o` |
 | `market` | `m` |
 | `login` | `auth` |
 | `portfolio` | `port`, `pf` |
@@ -649,8 +648,6 @@ passphrase = "YOUR_OKX_PASSPHRASE"
 | `market volume-snapshot` | `market vol`, `market vs` |
 | `market scanner` | `market scan` |
 | `market alert` | `market watch`, `market al` |
-| `orders get` | `orders list`, `orders ls` |
-| `orders cancel-all` | `orders cancel-all` |
 
 ---
 

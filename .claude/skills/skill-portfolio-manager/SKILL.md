@@ -100,7 +100,7 @@ One or more of:
 **Action:**
 1. Surface the specific warnings verbatim.
 2. Suggest one of:
-   - **Cancel open limit orders** to free locked margin: `skill-trading orders cancel-all -e <exchange>`
+   - **Cancel open limit orders** to free locked margin: `skill-trading order cancel-all -e <exchange>`
    - **Partially reduce the largest position**: `skill-trading order limit -e <exchange> -s <SYMBOL> --sell --reduce-only -q <qty> -p <price>`
    - **Do not open new positions** until utilization drops.
 3. Confirm with user before executing.
@@ -143,7 +143,7 @@ Only 10.3¢ of every $1 is free. Losses will further erode available margin.
 Actions:
 ```bash
 # Cancel all open limit orders to free locked margin
-skill-trading orders cancel-all -e <exchange>
+skill-trading order cancel-all -e <exchange>
 
 # Or partially close the largest position
 skill-trading order limit -e <exchange> -s NEARUSDT --sell --reduce-only -q <qty> -p <price>
@@ -161,7 +161,7 @@ Actions in order:
 skill-trading risk sl -e <exchange> -s NEARUSDT --stop-price 1.10
 
 # 2. Verify stop is in place
-skill-trading orders get -e <exchange>
+skill-trading order open -e <exchange>
 
 # 3. Or close entirely
 skill-trading position close -e <exchange> -s NEARUSDT

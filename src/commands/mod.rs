@@ -7,7 +7,6 @@ pub mod config;
 pub mod login;
 pub mod market;
 pub mod order;
-pub mod orders;
 pub mod portfolio;
 pub mod position;
 pub mod register;
