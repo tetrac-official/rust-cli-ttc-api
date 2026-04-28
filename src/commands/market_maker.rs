@@ -13,7 +13,7 @@
 
 use crate::api::Client;
 use crate::cli::MarketMakerArgs;
-use crate::commands::common::get_credentials;
+use crate::commands::common::{get_credentials, validate_order_inputs};
 use crate::config::AppConfig;
 use crate::error::{Result, TtcError};
 use crate::models::*;
@@ -78,9 +78,20 @@ pub async fn execute(args: MarketMakerArgs, settings: &AppConfig) -> Result<()> 
         ));
     }
 
+    validate_order_inputs(&args.symbol, args.quantity)?;
+
     let side_label = if args.buy { "BUY" } else { "SELL" };
     let commission = settings.market_maker.limit_order_commission;
-    let max_rounds = if args.rounds == 0 { u32::MAX } else { args.rounds };
+    // --rounds 0 means "until Ctrl-C" in real runs. In dry-run that would
+    // produce an infinite tight loop with no fill polling and no useful
+    // signal — cap to 1 so `market-maker --dry-run` previews exactly one
+    // round and exits cleanly. Users who want a multi-round preview can
+    // pass --rounds N explicitly.
+    let max_rounds = match (args.rounds, settings.trading.dry_run) {
+        (0, true) => 1,
+        (0, false) => u32::MAX,
+        (n, _) => n,
+    };
     let price_factor = 10f64.powi(args.price_decimals as i32);
 
     // Percentage spread takes precedence; absolute spread is the fallback

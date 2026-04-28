@@ -57,15 +57,35 @@ Medium-value
    1. **Floor-quantity FP precision bug — money-losing.** `15.0 / 50_000.0 * 10_000` is mathematically `3` but f64 yields `2.9999...`, which floor-rounded to `2` and then divided by `10_000` gave `0.0002` instead of `0.0003`. Result: a $15 budget executed at $10. Fixed by snapping to the nearest integer when within `1e-9` before flooring. Locked in by `floor_quantity_handles_fp_imprecision_at_high_prices`.
    2. **Market-maker SELL entry asymmetry.** Both BUY and SELL used `floor`. For SELL that put the order BELOW the live ask — undercutting the queue (selling for less) or matching as a taker (paying taker fee + losing the spread). Fixed: BUY floors, SELL ceils — both directions now sit passively behind the queue at a price in the maker's favor. Locked in by `sell_entry_ceils_to_above_or_equal_live_ask` and the property sweep.
 Lower-value but cheap
-10. Boundary validation
+10. [x] Boundary validation — 6 inline tests for `validate_order_inputs` in src/commands/common.rs (rejects empty/whitespace symbol, rejects zero/negative/NaN/±inf quantity, accepts well-formed inputs, error messages name the field) + 8 CLI subprocess tests in tests/integration_test.rs (negative qty rejected for market order, zero qty for limit, empty symbol rejected, whitespace-only symbol rejected, negative price rejected, market-maker negative qty rejected, market-maker --rounds 0 in dry-run terminates with one preview line, high leverage passes through cleanly).
 
-Negative --quantity rejected
-Leverage > exchange max rejected (or at least passed through cleanly)
-Empty symbol rejected
---rounds 0 for market-maker handled
-11. Portfolio thresholds (src/commands/portfolio.rs)
+   **Bugs found and FIXED:**
+   1. **No local boundary validation.** `order limit/market/stop/tp` and `market-maker` previously passed any clap-parsed value straight to the network — empty symbols, negative/zero/NaN quantities, negative prices all hit the exchange and got generic 400s back. Agents had to parse exchange-specific error text. Fixed: added `validate_order_inputs` helper called at the top of all 4 order commands and market-maker. Errors name the offending CLI flag (`--quantity`, `--symbol`, `--price`, `--stop-price`, `--tp-price`) so the agent recovery protocol can route directly to a fix without parsing exchange messages. Limit, stop, and TP commands also now validate their respective price arg.
+   2. **`market-maker --dry-run` infinite-looped on default `--rounds 0`.** `--rounds 0` is documented as "until Ctrl-C" for real runs, but in dry-run there is no fill polling — the loop ran a tight no-sleep cycle producing endless DRY-RUN lines. Fixed: in dry-run, `--rounds 0` caps to 1 (preview exactly one round and exit). Real runs still honor 0 as infinite.
 
-HEALTHY/WATCH/DANGER classification at threshold boundaries (just over, just under)
-Empty positions list returns HEALTHY
-12. Cross-platform launcher
-Test the scripts/skill-trading launcher against fake uname outputs (arm64 vs aarch64, x86_64, unsupported combos → useful error).
+   Leverage validation note: the existing `Leverage must be greater than 0` check stays. We don't impose a hard upper bound — exchange-specific maxes vary (Binance 125, Bybit 100, etc.) and the exchange will reject excess values cleanly. Test confirms `--leverage 9999` passes through without local clamping.
+11. [x] Portfolio thresholds — extracted three pure helpers and added 18 unit tests in src/commands/portfolio.rs.
+
+   **Refactor (small):** the inline classification logic was duplicated with the prose-printing loop. Extracted `classify_health(total_balance, locked, &positions, cfg) -> (HealthLevel, Vec<String>)` plus two utility helpers `liq_distance_pct` and `utilization_pct`. The summary command now uses `classify_health` as the single source of truth for health level + warnings; per-position prose markers stay inline as cosmetic-only flags.
+
+   **Tests cover:**
+   - `liq_distance_pct`: zero/missing → 100% (no signal), normal long, abs value for short.
+   - `utilization_pct`: zero balance → 0 (no Inf), normal case.
+   - Empty positions: HEALTHY with no balance, HEALTHY with low utilization.
+   - Safe position: HEALTHY.
+   - Threshold boundaries (each comparison is strict — exactly-on-threshold stays HEALTHY): utilization at 80% / just-over 80%, liq distance at 10% / just-below 10%, notional at $5000 / just-over $5000.
+   - `DANGER` overrides `WATCH` when both fire on one position.
+   - Multi-position aggregation: worst health wins, warnings collected per-position, healthy positions don't appear in warnings.
+   - Custom thresholds via `PortfolioConfig` are respected (not hard-coded).
+   - `HealthLevel` ordering invariant (Healthy < Watch < Danger) used by the worst-of selection.
+
+   No bugs uncovered — the threshold logic was already correct. The refactor's value is in eliminating the duplicated inline logic so future changes can't drift the prose vs. the canonical classification.
+12. [x] Cross-platform launcher — 12 tests in tests/launcher_test.rs that stub `uname` via PATH and drop named stub binaries in a per-test sandbox dir. Coverage:
+
+   **Happy-path dispatch** (6 tests): Darwin-arm64 → darwin-arm64; Darwin-x86_64 → darwin-x64; Linux-x86_64 → linux-x64; Linux-amd64 alias → linux-x64; Linux-aarch64 → linux-arm64; Linux-arm64 alias → linux-arm64. Confirms the launcher's case statement covers both naming variants for the same physical CPU family.
+
+   **Failure paths** (4 tests): unsupported platform (FreeBSD-amd64) exits 1 with `unsupported platform <combo>` in stderr; unsupported platform lists `available binaries:` when stubs are present (agent-friendly recovery hint); missing matching binary on a supported platform exits 1 with `not bundled` and the offending combo named; empty directory still exits 1 cleanly (the `ls | grep ... || true` guard keeps the pipeline from crashing).
+
+   **Plumbing** (2 tests): args are forwarded to the real binary verbatim; exit code from the real binary propagates through `exec` (verified with a stub that returns 42).
+
+   No bugs uncovered — the launcher script was already correct. Tests prevent regression on the OS/ARCH dispatch table, which CLAUDE.md explicitly calls out as a place where naming inconsistencies (arm64 on macOS vs aarch64 on Linux) tripped past iterations.

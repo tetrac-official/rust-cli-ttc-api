@@ -2,7 +2,7 @@
 
 use crate::api::Client;
 use crate::cli::*;
-use crate::commands::common::{convert_position_side, get_credentials};
+use crate::commands::common::{convert_position_side, get_credentials, validate_order_inputs};
 use crate::config::AppConfig;
 use crate::error::{Result, TtcError};
 use crate::models::*;
@@ -59,6 +59,13 @@ async fn place_limit(
 ) -> Result<()> {
     let printer = Printer::new(format);
     let side = determine_side(args.buy, args.sell)?;
+    validate_order_inputs(&args.symbol, args.quantity)?;
+    if !args.price.is_finite() || args.price <= 0.0 {
+        return Err(TtcError::InvalidOrder(format!(
+            "--price must be a positive finite number (got {})",
+            args.price
+        )));
+    }
 
     if settings.trading.dry_run {
         printer.dry_run(&format!(
@@ -115,6 +122,7 @@ async fn place_market(
 ) -> Result<()> {
     let printer = Printer::new(format);
     let side = determine_side(args.buy, args.sell)?;
+    validate_order_inputs(&args.symbol, args.quantity)?;
 
     if settings.trading.dry_run {
         printer.dry_run(&format!(
@@ -163,6 +171,13 @@ async fn place_market(
 async fn place_stop(args: OrderStopArgs, settings: &AppConfig, format: OutputFormat) -> Result<()> {
     let printer = Printer::new(format);
     let side = determine_side(args.buy, args.sell)?;
+    validate_order_inputs(&args.symbol, args.quantity)?;
+    if !args.stop_price.is_finite() || args.stop_price <= 0.0 {
+        return Err(TtcError::InvalidOrder(format!(
+            "--stop-price must be a positive finite number (got {})",
+            args.stop_price
+        )));
+    }
 
     if settings.trading.dry_run {
         printer.dry_run(&format!(
@@ -219,6 +234,13 @@ async fn place_take_profit(
 ) -> Result<()> {
     let printer = Printer::new(format);
     let side = determine_side(args.buy, args.sell)?;
+    validate_order_inputs(&args.symbol, args.quantity)?;
+    if !args.tp_price.is_finite() || args.tp_price <= 0.0 {
+        return Err(TtcError::InvalidOrder(format!(
+            "--tp-price must be a positive finite number (got {})",
+            args.tp_price
+        )));
+    }
 
     if settings.trading.dry_run {
         printer.dry_run(&format!(

@@ -320,6 +320,177 @@ fn test_ttc_exchange_env_overrides_config_file() {
     let _ = std::fs::remove_file(&cfg);
 }
 
+// ============================================================================
+// Boundary validation — local rejection of bad inputs before they hit the
+// network. Catching these early gives an agent an immediate, actionable
+// error instead of waiting for the upstream exchange to reject with 400.
+// ============================================================================
+
+#[test]
+fn test_negative_quantity_rejected_for_market_order() {
+    cmd()
+        .args([
+            "order", "market", "-e", "phemex", "-s", "BTCUSDT", "--buy", "-q", "-0.001",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--quantity"));
+}
+
+#[test]
+fn test_zero_quantity_rejected_for_limit_order() {
+    cmd()
+        .args([
+            "--dry-run",
+            "order",
+            "limit",
+            "-e",
+            "phemex",
+            "-s",
+            "BTCUSDT",
+            "--buy",
+            "-q",
+            "0",
+            "-p",
+            "50000",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("positive"));
+}
+
+#[test]
+fn test_empty_symbol_rejected_for_limit_order() {
+    cmd()
+        .args([
+            "--dry-run",
+            "order",
+            "limit",
+            "-e",
+            "phemex",
+            "-s",
+            "",
+            "--buy",
+            "-q",
+            "0.001",
+            "-p",
+            "50000",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--symbol"));
+}
+
+#[test]
+fn test_whitespace_only_symbol_rejected() {
+    cmd()
+        .args([
+            "--dry-run",
+            "order",
+            "market",
+            "-e",
+            "phemex",
+            "-s",
+            "   ",
+            "--sell",
+            "-q",
+            "0.001",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--symbol"));
+}
+
+#[test]
+fn test_negative_price_rejected_for_limit_order() {
+    cmd()
+        .args([
+            "--dry-run",
+            "order",
+            "limit",
+            "-e",
+            "phemex",
+            "-s",
+            "BTCUSDT",
+            "--buy",
+            "-q",
+            "0.001",
+            "-p",
+            "-1",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--price"));
+}
+
+#[test]
+fn test_negative_quantity_rejected_for_market_maker() {
+    cmd()
+        .args([
+            "--dry-run",
+            "market-maker",
+            "-e",
+            "orderly",
+            "-s",
+            "BTCUSDT",
+            "--buy",
+            "-q",
+            "-1",
+            "--rounds",
+            "1",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--quantity"));
+}
+
+#[test]
+fn test_market_maker_rounds_zero_in_dry_run_terminates() {
+    // Default --rounds is 0 (= until Ctrl-C in real runs). In dry-run the
+    // loop has no fill-polling, so 0 would mean an infinite tight loop —
+    // we cap it to 1 in dry-run so the command terminates with a single
+    // preview line.
+    cmd()
+        .args([
+            "--dry-run",
+            "market-maker",
+            "-e",
+            "orderly",
+            "-s",
+            "BTCUSDT",
+            "--buy",
+            "-q",
+            "1",
+            "--rounds",
+            "0",
+        ])
+        .timeout(std::time::Duration::from_secs(10))
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("DRY-RUN"));
+}
+
+#[test]
+fn test_high_leverage_passes_through_without_local_clamp() {
+    // Leverage validation lives at the exchange — the CLI doesn't second-guess
+    // exchange-specific maxes. Dry-run accepts any positive leverage cleanly.
+    cmd()
+        .args([
+            "--dry-run",
+            "account",
+            "leverage",
+            "-e",
+            "phemex",
+            "-s",
+            "BTCUSDT",
+            "-l",
+            "9999",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("DRY-RUN"));
+}
+
 #[test]
 fn test_malformed_config_file_fails_clearly() {
     let cfg = write_temp_config("this is not = = valid toml [[");
