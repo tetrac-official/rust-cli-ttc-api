@@ -6,7 +6,7 @@ A reference for every error message this CLI can produce, what causes it, and ho
 
 ## Error: `Missing credentials for exchange: <name>`
 
-**Cause:** The CLI could not find an API key and secret for the requested exchange. Neither the CLI flags, the `.env` file, nor `config.toml` contained credentials for that exchange.
+**Cause:** The CLI could not find an API key and secret for the requested exchange. Neither the CLI flags nor the `.env` file contained credentials for that exchange. (API keys never live in `config.toml` — that file holds non-secret preferences only.)
 
 **Fix:**
 1. Open `.env` in the project directory

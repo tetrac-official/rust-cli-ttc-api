@@ -70,6 +70,8 @@ cp config.example.toml config.toml
 cp .env.sample .env
 ```
 
+> ⚠️ **Never put API keys in `config.toml`.** All secrets — exchange credentials (`{EXCHANGE}_API_KEY`, `{EXCHANGE}_API_SECRET`, `{EXCHANGE}_API_PASSPHRASE`) and TTC Box session tokens (`TTC_AUTH_TOKEN`, `TTC_PASSKEY`) — belong in `.env` only. `config.toml` is for non-secret preferences (default exchange, output format, watchlist, portfolio thresholds, market-maker tunables).
+
 Then use a `.env` file in the working directory for all your exchange account api keys:
 
 ```env
@@ -300,13 +302,9 @@ skill-trading config path
 
 # Set default exchange
 skill-trading config set-default phemex
-
-# Add exchange credentials
-skill-trading config add-exchange phemex --api-key KEY --api-secret SECRET
-
-# Remove exchange credentials
-skill-trading config rm-exchange phemex
 ```
+
+> Exchange credentials live in `.env` (`{EXCHANGE}_API_KEY` / `{EXCHANGE}_API_SECRET` / `{EXCHANGE}_API_PASSPHRASE`) — never in `config.toml`.
 
 ### Portfolio Health
 
@@ -590,28 +588,28 @@ skill-trading --dry-run order limit -e phemex -s BTCUSDT --buy -q 0.001 -p 95000
 
 | Priority | Source | Example |
 |----------|--------|---------|
-| 1 | CLI flags | `--api-key abc123` |
-| 2 | Environment variables / `.env` | `TTC_AUTH_TOKEN=abc123` |
-| 3 | `config.toml` | `api_key = "abc123"` |
+| 1 | CLI flags | `--exchange-api-key abc123` |
+| 2 | Environment variables / `.env` | `ORDERLY_API_KEY=abc123` |
+| 3 | `config.toml` (non-secret preferences only) | `default_leverage = 10` |
 | 4 | Built-in defaults | |
 
-For multi-exchange setups, use exchange-specific sections in `config.toml`:
-
-```toml
-[exchanges.phemex]
-api_key = "YOUR_PHEMEX_KEY"
-api_secret = "YOUR_PHEMEX_SECRET"
-
-[exchanges.orderly]
-api_key = "YOUR_ORDERLY_KEY"
-api_secret = "YOUR_ORDERLY_SECRET"
-passphrase = "what_exchange"   # broker ID
-
-[exchanges.okx]
-api_key = "YOUR_OKX_KEY"
-api_secret = "YOUR_OKX_SECRET"
-passphrase = "YOUR_OKX_PASSPHRASE"
-```
+> ⚠️ **API keys never go in `config.toml`.** For multi-exchange setups, put each exchange's credentials in `.env` using the `{EXCHANGE}_API_KEY` / `{EXCHANGE}_API_SECRET` / `{EXCHANGE}_API_PASSPHRASE` pattern:
+>
+> ```env
+> # .env
+> PHEMEX_API_KEY=YOUR_PHEMEX_KEY
+> PHEMEX_API_SECRET=YOUR_PHEMEX_SECRET
+>
+> ORDERLY_API_KEY=YOUR_ORDERLY_KEY
+> ORDERLY_API_SECRET=YOUR_ORDERLY_SECRET
+> ORDERLY_API_PASSPHRASE=what_exchange     # broker ID
+>
+> OKX_API_KEY=YOUR_OKX_KEY
+> OKX_API_SECRET=YOUR_OKX_SECRET
+> OKX_API_PASSPHRASE=YOUR_OKX_PASSPHRASE
+> ```
+>
+> Switch the active exchange with `-e <name>` per command or `TTC_EXCHANGE=<name>` in `.env`.
 
 ### Config File Discovery
 
