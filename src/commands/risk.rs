@@ -510,3 +510,180 @@ async fn trail_watch(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    //! Trail-watch progress file lifecycle.
+    //!
+    //! Sandboxes $HOME per test so files don't end up in the user's real home.
+
+    use super::*;
+    use crate::commands::common::TEST_ENV_LOCK;
+    use uuid::Uuid;
+
+    struct SandboxedHome {
+        path: PathBuf,
+        prev_home: Option<String>,
+        _guard: std::sync::MutexGuard<'static, ()>,
+    }
+
+    impl SandboxedHome {
+        fn new() -> Self {
+            let guard = TEST_ENV_LOCK
+                .lock()
+                .unwrap_or_else(|p| p.into_inner());
+            let prev_home = std::env::var("HOME").ok();
+            let path = std::env::temp_dir().join(format!("trail-watch-test-{}", Uuid::new_v4()));
+            std::fs::create_dir_all(&path).unwrap();
+            std::env::set_var("HOME", &path);
+            Self {
+                path,
+                prev_home,
+                _guard: guard,
+            }
+        }
+    }
+
+    impl Drop for SandboxedHome {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+            match &self.prev_home {
+                Some(h) => std::env::set_var("HOME", h),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+    }
+
+    fn fixture(symbol: &str, exchange: &str) -> TrailWatchProgress {
+        TrailWatchProgress {
+            symbol: symbol.into(),
+            exchange: exchange.into(),
+            position_side: "long".into(),
+            active: true,
+            mark_price: 31_500.0,
+            entry_price: 30_000.0,
+            peak_price: Some(31_800.0),
+            trail_pct: 2.0,
+            current_stop: Some(31_164.0),
+            stop_order_id: Some("ord-abc-123".into()),
+            unrealized_pnl: 750.0,
+            position_size: 0.5,
+            updated_at: "2026-04-28T12:00:00Z".into(),
+        }
+    }
+
+    #[test]
+    fn trail_watch_path_is_dotfile_in_home() {
+        let _h = SandboxedHome::new();
+        let p = trail_watch_path("BTCUSDT", "Orderly");
+        let parent = p.parent().unwrap();
+        assert_eq!(parent, std::env::var_os("HOME").map(PathBuf::from).unwrap());
+        assert_eq!(
+            p.file_name().unwrap().to_str().unwrap(),
+            ".trail-watch-btcusdt-orderly.json"
+        );
+    }
+
+    #[test]
+    fn trail_watch_path_lowercases_inputs() {
+        let _h = SandboxedHome::new();
+        assert_eq!(
+            trail_watch_path("BtCuSdT", "OrDeRlY"),
+            trail_watch_path("btcusdt", "orderly")
+        );
+    }
+
+    #[test]
+    fn save_writes_full_progress_shape_as_valid_json() {
+        // TrailWatchProgress is Serialize-only, so we round-trip via Value.
+        let _h = SandboxedHome::new();
+        let p = fixture("BTCUSDT", "orderly");
+        save_trail_watch_progress(&p);
+
+        let raw = std::fs::read_to_string(trail_watch_path(&p.symbol, &p.exchange))
+            .expect("file written");
+        let v: serde_json::Value = serde_json::from_str(&raw).expect("valid JSON");
+
+        // The CLAUDE.md contract: an agent reads this file to inspect state.
+        // Lock in the exact field names + types it expects.
+        assert_eq!(v["symbol"], "BTCUSDT");
+        assert_eq!(v["exchange"], "orderly");
+        assert_eq!(v["active"], true);
+        assert_eq!(v["mark_price"], 31_500.0);
+        assert_eq!(v["entry_price"], 30_000.0);
+        assert_eq!(v["peak_price"], 31_800.0);
+        assert_eq!(v["trail_pct"], 2.0);
+        assert_eq!(v["current_stop"], 31_164.0);
+        assert_eq!(v["stop_order_id"], "ord-abc-123");
+        assert_eq!(v["unrealized_pnl"], 750.0);
+        assert_eq!(v["position_size"], 0.5);
+        assert_eq!(v["updated_at"], "2026-04-28T12:00:00Z");
+        assert_eq!(v["position_side"], "long");
+    }
+
+    #[test]
+    fn save_with_none_optionals_writes_null() {
+        // Before activation, peak_price / current_stop / stop_order_id are None.
+        let _h = SandboxedHome::new();
+        let p = TrailWatchProgress {
+            symbol: "ETHUSDT".into(),
+            exchange: "bybit".into(),
+            position_side: "long".into(),
+            active: false,
+            mark_price: 2000.0,
+            entry_price: 2010.0,
+            peak_price: None,
+            trail_pct: 1.5,
+            current_stop: None,
+            stop_order_id: None,
+            unrealized_pnl: -5.0,
+            position_size: 1.0,
+            updated_at: "2026-04-28T12:00:00Z".into(),
+        };
+        save_trail_watch_progress(&p);
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(trail_watch_path(&p.symbol, &p.exchange)).unwrap())
+                .unwrap();
+        assert!(v["peak_price"].is_null());
+        assert!(v["current_stop"].is_null());
+        assert!(v["stop_order_id"].is_null());
+        assert_eq!(v["active"], false);
+    }
+
+    #[test]
+    fn save_then_remove_clears_the_file() {
+        let _h = SandboxedHome::new();
+        let p = fixture("DELME", "exch");
+        save_trail_watch_progress(&p);
+        assert!(trail_watch_path(&p.symbol, &p.exchange).exists());
+        remove_trail_watch_progress(&p.symbol, &p.exchange);
+        assert!(!trail_watch_path(&p.symbol, &p.exchange).exists());
+    }
+
+    #[test]
+    fn remove_for_missing_file_is_a_noop() {
+        let _h = SandboxedHome::new();
+        remove_trail_watch_progress("NEVER", "saved");
+    }
+
+    #[test]
+    fn save_overwrites_previous_state_in_place() {
+        // Each tick replaces the file; verify that a second save replaces
+        // the first.
+        let _h = SandboxedHome::new();
+        let mut p = fixture("OVRWRT", "exch");
+        save_trail_watch_progress(&p);
+
+        p.mark_price = 32_000.0;
+        p.peak_price = Some(32_500.0);
+        p.current_stop = Some(31_850.0);
+        save_trail_watch_progress(&p);
+
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(trail_watch_path(&p.symbol, &p.exchange)).unwrap())
+                .unwrap();
+        assert_eq!(v["mark_price"], 32_000.0);
+        assert_eq!(v["peak_price"], 32_500.0);
+        assert_eq!(v["current_stop"], 31_850.0);
+    }
+}

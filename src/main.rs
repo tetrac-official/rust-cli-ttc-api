@@ -73,8 +73,11 @@ pub struct Cli {
     #[arg(short, long, global = true)]
     pub verbose: bool,
 
-    /// Disable colored output
-    #[arg(long, env = "NO_COLOR", global = true)]
+    /// Disable colored output. The `colored` crate also auto-disables when
+    /// stdout is not a TTY or when the NO_COLOR env var (per no-color.org)
+    /// is set to ANY value — we don't bind NO_COLOR via clap because clap
+    /// would reject "1" (the canonical NO_COLOR value) on a bool field.
+    #[arg(long, global = true)]
     pub no_color: bool,
 
     /// Dry run - don't execute, just show what would happen
@@ -102,7 +105,8 @@ async fn main() -> Result<()> {
 
     let cli = Cli::parse();
 
-    // Initialize logging
+    // Initialize logging — diagnostic output goes to stderr so it doesn't
+    // contaminate JSON/CSV stdout that agents pipe to parsers.
     let log_level = if cli.verbose {
         Level::DEBUG
     } else {
@@ -112,8 +116,16 @@ async fn main() -> Result<()> {
         .with_max_level(log_level)
         .with_target(false)
         .with_thread_ids(false)
+        .with_writer(std::io::stderr)
         .pretty()
         .init();
+
+    // If the user passed --no-color, force-disable colors globally.
+    // (The `colored` crate already respects NO_COLOR env and TTY-detection
+    // on its own; this handles the explicit-flag case.)
+    if cli.no_color {
+        colored::control::set_override(false);
+    }
 
     // Build settings from CLI args
     let mut settings = AppConfig::load_from_file(&cli.config)?;

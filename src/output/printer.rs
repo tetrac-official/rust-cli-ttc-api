@@ -14,18 +14,23 @@ impl Printer {
         Self { format }
     }
 
+    // Status messages always go to stderr so stdout stays pristine for
+    // structured output (JSON/CSV) consumed by agents. In Table mode a human
+    // reading the terminal still sees both streams intermixed.
     pub fn success(&self, msg: &str) {
-        println!("{} {}", "OK".green(), msg);
+        eprintln!("{} {}", "OK".green(), msg);
     }
 
     pub fn warning(&self, msg: &str) {
-        println!("{} {}", "WARN".yellow(), msg);
+        eprintln!("{} {}", "WARN".yellow(), msg);
     }
 
     pub fn info(&self, msg: &str) {
-        println!("{} {}", "INFO".blue(), msg);
+        eprintln!("{} {}", "INFO".blue(), msg);
     }
 
+    // dry_run is the actual result of a dry-run command — keep it on stdout
+    // so it can be captured/piped like any other output.
     pub fn dry_run(&self, msg: &str) {
         println!("{} {}", "DRY-RUN".cyan(), msg.yellow());
     }

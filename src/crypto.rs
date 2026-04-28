@@ -350,7 +350,7 @@ mod tests {
         assert_eq!(&raw[..8], b"Salted__");
         // body must be a positive multiple of 16 (AES block size, PKCS7-padded)
         let body_len = raw.len() - 16;
-        assert!(body_len > 0 && body_len % 16 == 0);
+        assert!(body_len > 0 && body_len.is_multiple_of(16));
     }
 
     #[test]

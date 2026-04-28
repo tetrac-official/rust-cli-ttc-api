@@ -8,7 +8,7 @@ Place orders, manage positions, scan markets, and control risk. Designed for AI 
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-Proprietary-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-0.1.4-green.svg)]()
+[![Version](https://img.shields.io/badge/version-0.1.5-green.svg)]()
 
 ---
 

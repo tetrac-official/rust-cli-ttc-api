@@ -64,3 +64,10 @@ pub fn parse_position_side(s: &str) -> PositionSide {
         _ => PositionSide::Both,
     }
 }
+
+/// Process-wide lock for any test that mutates process env vars or $HOME
+/// (state-file tests, status command tests, anything reading per-exchange
+/// API key env vars). Without a single shared lock, parallel tests across
+/// modules clobber each other's env state.
+#[cfg(test)]
+pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());

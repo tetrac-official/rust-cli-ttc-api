@@ -27,29 +27,35 @@ Server-side idempotency keys — out of this repo, but the right long-term fix.
 
    **Gap surfaced:** `deserialize_opt_f64_or_string` has a `visit_str("")` → None branch but it is unreachable on `Option<f64>` fields. serde routes `"locked": ""` through visit_some → deserialize_f64_or_string, which fails to parse "" as a float. The test `balance_rejects_empty_string_locked_today` locks in current behavior; flip to `is_ok()` if the helper is fixed to handle this case (some exchanges do return "" for unset numeric fields).
 Medium-value
-6. State-file handling
+6. [x] State-file handling — 16 inline tests added: 9 in src/commands/twap.rs (path shape + lowercase, save/load round-trip preserves all fields including completed_indices for resume, pretty-printed JSON parses, malformed JSON → None not panic, missing file → None, delete removes + idempotent on missing file) and 7 in src/commands/risk.rs (path shape + lowercase, full progress JSON shape with all fields locked in, None optionals serialize as null, save+remove cycle, remove on missing is no-op, save overwrites in place per-tick).
 
-~/.trail-watch-{symbol}-{exchange}.json writes valid JSON, is removed on close
-~/.twap-{symbol}-{exchange}.json survives crash mid-fill (read partial state, resume)
-Concurrent writers don't corrupt the file (atomic rename pattern)
-7. Output formatters (src/output/printer.rs)
+   Tests sandbox $HOME to a per-test temp dir. A single shared lock (`TEST_HOME_LOCK` in src/commands/common.rs) serializes both modules so they don't clobber each other's HOME. Lock acquisition uses `unwrap_or_else(|p| p.into_inner())` to recover from poisoning so a panicking test doesn't cascade.
 
-JSON output is parseable JSON
-CSV has correct number of columns, escaping for quoted fields
-Quiet mode produces no stdout
---output-format env (TTC_OUTPUT) overrides default but loses to CLI flag
-8. Status command exit codes
-CLAUDE.md says status exits 1 if not ready. Add:
+   **Skipped:** "Concurrent writers don't corrupt the file (atomic rename pattern)" — current `save_state` / `save_trail_watch_progress` use plain `fs::write`, which is NOT atomic. But the design has a single writer per symbol+exchange (TWAP loop owns its file; trail-watch loop owns its file), and concurrent runs against the same symbol+exchange are an error condition the user wouldn't intentionally create. Atomicity isn't a feature here; non-atomic write matches the use case. If we ever support multi-writer scenarios, the fix is `write to tmp + rename` and the test is `spawn 50 threads, all write, file is always parseable`.
+7. [x] Output formatters (src/output/printer.rs) — 3 inline tests in src/output/mod.rs (Default = Table, Display matches the lowercase tokens clap accepts, Copy + Eq semantics) + 9 subprocess tests in tests/output_format_test.rs driving `account balance --output-format X` against a mocked TTC Box: JSON output contains a parseable JSON array; CSV starts with header line and data row column count matches header; Quiet emits the minimal `<asset>:<balance>` and not table/CSV/JSON markers; Table uses the BAL marker; empty list prints "No results found" except in Quiet; TTC_OUTPUT env selects format; CLI flag overrides TTC_OUTPUT.
 
-Exit 0 when session valid + exchange creds present
-Exit 1 with no session
-Exit 1 with expired token
-9. Quantity/decimals math
-Bugs here lose money. For twap-slice and market-maker:
+   Subprocess tests serialize via an internal Mutex (SERIAL) — without it, 9 parallel mockito + subprocess tests occasionally race on port allocation / process slot exhaustion. With the lock, 5/5 isolated runs pass and 0 flakes in full-suite runs.
 
---decimals 0 truncates correctly
-USD amount → quantity conversion at given price is exact at boundaries
-Spread math: entry × (1 ± spread_pct/100) rounds the right way for buy vs sell
+   **Bugs found and FIXED:**
+   1. **Stdout pollution broke structured output.** `printer.info/success/warning` and `tracing-subscriber` were both writing to stdout, mixing log lines and status text into the JSON/CSV/Quiet payload that agents pipe to parsers. Fix: status messages routed to stderr (printer.rs); tracing routed to stderr (`with_writer(std::io::stderr)` in main.rs). Result: `--output-format json` stdout is now ENTIRELY parseable JSON (locked in by `json_stdout_is_pristine_no_status_or_log_lines`), CSV first line is the header (`csv_stdout_is_pristine_first_line_is_header`), Quiet stdout is only data lines (`quiet_stdout_is_pristine_only_data_lines`). One test (`test_config_path_command`) updated to assert the status string on stderr and the path on stdout.
+   2. **`NO_COLOR=1` errored out the binary.** clap parses `--no-color: bool` strictly and rejects `"1"`. Fix: dropped `env = "NO_COLOR"` from the clap arg (the `colored` crate respects NO_COLOR natively), and explicit `--no-color` flag now calls `colored::control::set_override(false)` to actually disable colors. Locked in by `no_color_env_value_one_does_not_break_the_binary`.
+   3. **`market-maker --dry-run` required network access.** The BBA fetch happened BEFORE the dry-run check, so a network blip made dry-run unusable. For agents this was a real defect — dry-run should let them verify a plan offline. Fix: in dry-run mode, BBA failure falls back to a placeholder price (1.0) with an stderr warning, so dry-run completes regardless of network state. This also resolved the pre-existing flake in `tests/unit_new_features.rs::test_market_maker_dry_run`. 5/5 stress-test runs of the full suite now pass clean.
+8. [x] Status command exit codes — 14 inline pure-function tests in src/commands/status.rs (check_session: missing token, empty token, no issued-at, recent issued-at, 25h expired, 24h boundary, malformed timestamp; check_credentials: nothing set, global CLI creds, default exchange, per-exchange env vars, partial env doesn't count, exchanges-table entries) + 7 subprocess tests in tests/status_test.rs locking in exit 0/1 contract: exits 1 with no session/creds, with expired token, with creds missing, with API unreachable; exits 0 when all healthy and when token present without issued-at; emits actionable hints on stderr when failing.
+
+   **Test infrastructure improvement:** subprocess tests run with `current_dir(empty_cwd())` because `dotenvy::dotenv()` in main.rs auto-loads `.env` from the cwd at startup, leaking the project's real `TTC_AUTH_TOKEN` and `ORDERLY_*` env vars into test processes. Running from an empty temp dir makes the tests deterministic. Renamed `TEST_HOME_LOCK` → `TEST_ENV_LOCK` in src/commands/common.rs since the same Mutex now serializes both HOME-mutating tests and env-var-mutating status tests.
+
+   **Behavioral findings (no fix needed):**
+   - `check_session` treats malformed `TTC_TOKEN_ISSUED_AT` as VALID (with "issued-at unknown" hint). This is conservative — better to keep the user moving than lock them out on a parse error.
+   - `check_session` exit `>= 24h` is expired (strict). The 24h boundary is the same as the server's TTC Box token TTL.
+9. [x] Quantity/decimals math — extracted three pure helpers and added 19 unit tests covering the money-math kernels.
+
+   **`floor_quantity` (src/commands/twap_slice.rs)** — 8 tests covering decimals=0 truncation, finer precision preserves more notional, high-price/low-amount edge cases, None on zero/negative/NaN/inf inputs, and a property-style sweep across realistic amount/price/decimals combinations confirming the floor invariant (qty × price ≤ amount, never overspend).
+
+   **`round_entry_price` / `compute_spread` / `exit_price` (src/commands/market_maker.rs)** — 11 tests covering: BUY entry floors below live bid (passive), SELL entry ceils above live ask (passive), at-tick prices unchanged, property sweep proving rounding is always in the maker's favor, defensive NaN/zero handling, spread uses requested when above min, spread floors to min when below, spread tick-rounding, exit prices preserve spread as PnL-per-unit on both sides.
+
+   **Bugs found and FIXED:**
+   1. **Floor-quantity FP precision bug — money-losing.** `15.0 / 50_000.0 * 10_000` is mathematically `3` but f64 yields `2.9999...`, which floor-rounded to `2` and then divided by `10_000` gave `0.0002` instead of `0.0003`. Result: a $15 budget executed at $10. Fixed by snapping to the nearest integer when within `1e-9` before flooring. Locked in by `floor_quantity_handles_fp_imprecision_at_high_prices`.
+   2. **Market-maker SELL entry asymmetry.** Both BUY and SELL used `floor`. For SELL that put the order BELOW the live ask — undercutting the queue (selling for less) or matching as a taker (paying taker fee + losing the spread). Fixed: BUY floors, SELL ceils — both directions now sit passively behind the queue at a price in the maker's favor. Locked in by `sell_entry_ceils_to_above_or_equal_live_ask` and the property sweep.
 Lower-value but cheap
 10. Boundary validation
 
@@ -63,9 +69,3 @@ HEALTHY/WATCH/DANGER classification at threshold boundaries (just over, just und
 Empty positions list returns HEALTHY
 12. Cross-platform launcher
 Test the scripts/skill-trading launcher against fake uname outputs (arm64 vs aarch64, x86_64, unsupported combos → useful error).
-
-What I'd skip
-Testing actual TTC Box API calls (flaky, requires creds, integration territory)
-Testing /loop itself (it's Claude Code's harness, not yours)
-UI snapshot tests on table output (brittle, low ROI)
-The top 5 give you the most defense per line of test code. If you want, I can implement #1 (crypto) and #3 (error classification) as a starting batch — both are pure-function-heavy and won't need HTTP mocks.

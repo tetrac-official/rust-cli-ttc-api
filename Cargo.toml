@@ -1,6 +1,6 @@
 [package]
 name = "skill-trading"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 authors = ["ttcbox"]
 description = "Execute trading operations on TTC Box across 15+ exchanges"

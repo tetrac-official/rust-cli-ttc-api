@@ -604,9 +604,11 @@ color = true
     #[test]
     fn cli_global_creds_beat_per_exchange_config() {
         // Global flags (exchange_api_key/secret) win over [exchanges.bybit]
-        let mut config = AppConfig::default();
-        config.exchange_api_key = Some("from-cli".into());
-        config.exchange_api_secret = Some("cli-secret".into());
+        let mut config = AppConfig {
+            exchange_api_key: Some("from-cli".into()),
+            exchange_api_secret: Some("cli-secret".into()),
+            ..Default::default()
+        };
         config.exchanges.insert(
             "bybit".to_string(),
             ExchangeCredentialConfig {
@@ -718,9 +720,11 @@ color = true
         std::env::set_var(format!("{}_API_KEY", prefix), "env-key");
         std::env::set_var(format!("{}_API_SECRET", prefix), "env-secret");
 
-        let mut config = AppConfig::default();
-        config.exchange_api_key = Some("cli-key".into());
-        config.exchange_api_secret = Some("cli-secret".into());
+        let config = AppConfig {
+            exchange_api_key: Some("cli-key".into()),
+            exchange_api_secret: Some("cli-secret".into()),
+            ..Default::default()
+        };
 
         let creds = config.get_credentials(exch).unwrap();
         assert_eq!(creds.api_key, "cli-key");

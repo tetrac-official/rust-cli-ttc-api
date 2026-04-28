@@ -17,16 +17,17 @@ use skill_trading::models::ExchangeCredentials;
 use std::time::Instant;
 
 fn config_for(server_url: &str, max_retries: u32, retry_delay_ms: u64) -> AppConfig {
-    let mut cfg = AppConfig::default();
-    cfg.api_key = Some("test-auth-token".into());
-    cfg.public_key = Some("test-public-key".into());
-    cfg.api = ApiConfig {
-        base_url: server_url.to_string(),
-        timeout: 5,
-        max_retries,
-        retry_delay_ms,
-    };
-    cfg
+    AppConfig {
+        api_key: Some("test-auth-token".into()),
+        public_key: Some("test-public-key".into()),
+        api: ApiConfig {
+            base_url: server_url.to_string(),
+            timeout: 5,
+            max_retries,
+            retry_delay_ms,
+        },
+        ..Default::default()
+    }
 }
 
 fn fake_creds() -> ExchangeCredentials {
@@ -295,14 +296,16 @@ async fn retry_backoff_sleeps_between_attempts() {
 #[tokio::test]
 async fn transport_error_is_retried_via_separate_arm() {
     // Port 1 is reserved (tcpmux); connection refused on every attempt.
-    let mut cfg = AppConfig::default();
-    cfg.api_key = Some("x".into());
-    cfg.public_key = Some("y".into());
-    cfg.api = ApiConfig {
-        base_url: "http://127.0.0.1:1".into(),
-        timeout: 1,
-        max_retries: 2,
-        retry_delay_ms: 50,
+    let cfg = AppConfig {
+        api_key: Some("x".into()),
+        public_key: Some("y".into()),
+        api: ApiConfig {
+            base_url: "http://127.0.0.1:1".into(),
+            timeout: 1,
+            max_retries: 2,
+            retry_delay_ms: 50,
+        },
+        ..Default::default()
     };
     let client = Client::new(&cfg).unwrap();
 

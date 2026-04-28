@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn parse_and_io_errors_are_not_retryable() {
-        let io_err: TtcError = std::io::Error::new(std::io::ErrorKind::Other, "x").into();
+        let io_err: TtcError = std::io::Error::other("x").into();
         assert!(!io_err.is_retryable());
 
         let json_err: TtcError = serde_json::from_str::<i32>("not-json").unwrap_err().into();

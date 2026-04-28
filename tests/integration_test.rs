@@ -39,12 +39,15 @@ fn test_info_command() {
 
 #[test]
 fn test_config_path_command() {
+    // "Config file location:" is a status message → stderr.
+    // The actual path is data → stdout (always contains the literal "config.toml").
     cmd()
         .arg("config")
         .arg("path")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Config file"));
+        .stderr(predicate::str::contains("Config file"))
+        .stdout(predicate::str::contains("config.toml"));
 }
 
 #[test]
