@@ -21,12 +21,11 @@ Server-side idempotency keys — out of this repo, but the right long-term fix.
 4. [x] HTTP client retry (src/api/client.rs) — 13 tests in tests/http_retry_test.rs using mockito 1.6 with `Server::new_async()`. Coverage: success-first-try (1 call), 429 then 200 retry success, persistent 429 caps at max_retries+1 attempts, max_retries=1 means 2 total attempts, 5xx (500/503) NOT retried (locks current behavior — see error classification gap in task 3), 4xx (400/401/403/422) NOT retried, retry backoff sleep is observable (250ms ≤ elapsed ≤ 5s for retry_delay_ms=100 with 2 retries), transport-layer connection refused IS retried via the separate arm at client.rs:94 (verified by pointing at 127.0.0.1:1 and asserting the call takes long enough to prove retries happened, then maps to TtcError::Request after exhaustion), and a sanity test confirming the request shape (ttc-auth-token / ttc-public-key headers + JSON body containing exchangeName/method).
 
    Note: the original plan included "succeeds on 2nd attempt after one 503" — but that's not how the code behaves today. Replaced with the 429 equivalent (which IS retryable) and added explicit 5xx-not-retried tests to lock in current behavior. The "times out cleanly" bullet is implicitly covered by the transport-error test (timeout=1s, 2 retries, retry_delay_ms=50 → call returns within seconds, never hangs).
-5. Model serde round-trips (src/models.rs)
-For each DTO, serde_json::from_str then to_string then from_str again equals the original. Catches breakage when TTC Box API changes shape:
+5. [x] Model serde round-trips (src/models.rs) — 37 tests in tests/models_serde_test.rs covering: enum wire format (OrderSide/PositionSide lowercase, TimeInForce/TriggerType PascalCase, MarginMode lowercase, wrong-case rejection), permissive numeric deserializers (Balance / OpenInterestItem accept both numbers and string-quoted numbers, missing/null Option behavior), Position null-pnl + effective_pnl fallback (dYdX quirk), Order id/order_id/type aliases including integer IDs, ScanSignal NEUTRAL with null TP/SL levels, ApiResponse error→message alias, ExchangeRequest camelCase, ExchangeCredentials skips None passphrase/wallet_address, LimitOrder/MarketOrder/StopOrder/CancelOrder param wire shapes (with tests for the orderID/clientOrderID uppercase rename and stopPrice/triggerType/closePosition naming).
 
-OrderSide, PositionSide enum case sensitivity
-Optional fields (stop_loss, tp may be null on NEUTRAL signals — already noted in CLAUDE.md)
-Decimal precision (4-decimal display rule)
+   **Skipped:** "Decimal precision (4-decimal display rule)" — that's a printer concern, not serde. Will land in task 7.
+
+   **Gap surfaced:** `deserialize_opt_f64_or_string` has a `visit_str("")` → None branch but it is unreachable on `Option<f64>` fields. serde routes `"locked": ""` through visit_some → deserialize_f64_or_string, which fails to parse "" as a float. The test `balance_rejects_empty_string_locked_today` locks in current behavior; flip to `is_ok()` if the helper is fixed to handle this case (some exchanges do return "" for unset numeric fields).
 Medium-value
 6. State-file handling
 
