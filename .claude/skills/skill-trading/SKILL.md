@@ -552,6 +552,89 @@ Output:
 
 ---
 
+## ERROR RECOVERY PROTOCOL
+
+When a CLI command exits non-zero, you MUST distinguish **pre-flight** failures from **in-flight** failures before deciding whether to retry. The wrong choice can place duplicate orders, double exposure, or trip leverage limits.
+
+### Read vs write operations
+
+Read operations are idempotent — re-running them is safe. Write operations mutate exchange state and CANNOT be safely re-run without verification.
+
+| Read (idempotent — retry freely) | Write (NOT idempotent — verify before any retry) |
+|---|---|
+| `account balance` | `order limit` / `market` / `stop` / `tp` |
+| `position get` / `position pnl` | `order cxl` / `order cxl-all` |
+| `order open` | `position close` / `position close-all` |
+| `market *` (tickers, funding, OI, scanner) | `account leverage` / `account hedge` |
+| `portfolio summary` / `status` / `brief` | `risk sl` / `risk tp` / `risk trail` / `trail-watch` |
+| `info` / `config show` / `config path` | `twap` / `twap-slice` / `market-maker` |
+
+### Step 1 — Classify the failure
+
+**Pre-flight failure** — the request never reached the exchange. Safe to fix the cause and retry the exact same command. Signatures:
+
+- `Invalid order parameters: ...` — local validation rejected the args
+- `Missing credentials for exchange: ...` — never sent
+- `Configuration error: ...` — never sent
+- `API error [400]: ...tick size...` / `...lot size...` / `...insufficient balance...` — TTC Box rejected before forwarding
+- `API error [401]: Unauthorized` — session expired; never reached the exchange (run `login`, then retry)
+- `API error [403]: Forbidden` — bad method; never reached the exchange
+- `Position not found: <symbol>` — read-side miss; nothing was mutated
+
+For these: fix the cause (see [references/troubleshooting.md](references/troubleshooting.md)), then retry. The exchange has not been touched, so retrying creates exactly one order.
+
+**In-flight failure** — the request MAY have reached the exchange. Outcome is uncertain. Signatures:
+
+- `API error [500]: ...` (TTC Box catch-all — could mean upstream filled then storage threw)
+- `API request failed: ...` (transport error after retries were exhausted)
+- `Rate limited - retry after N seconds` (CLI already auto-retried — if you see this, the retry budget is spent)
+- Any error following a write op where the cause is unclear
+
+**For in-flight failures on a write op, do NOT retry. Run the verification protocol first.**
+
+### Step 2 — Verification protocol (write op + in-flight failure)
+
+Run all three commands. Do not skip any.
+
+```bash
+skill-trading order open -e <exchange>
+skill-trading position get -e <exchange> -s <symbol>
+skill-trading account balance -e <exchange>
+```
+
+### Step 3 — Decide from actual state
+
+| Actual state | Meaning | Action |
+|---|---|---|
+| Desired position open at expected size | Order filled; the error was a downstream blip | Report success. **Do not retry.** |
+| Matching order is in `order open` | Accepted and working at the exchange | Let it run, or cancel deliberately. **Do not place another.** |
+| Neither position nor pending order | Did not reach exchange OR was rejected | Safe to retry the original command **once**. |
+| Position size differs from intended (partial fill) | Partial fill before the error | Report state to the user. **Do not auto-place a "fill the rest" order** without explicit instruction. |
+
+### Hard rules
+
+- **Never retry a write op without running the verification protocol first.** A duplicate market order can double exposure.
+- **Never retry a write op more than once after verification.** If the second attempt is also ambiguous, stop and surface the situation to the user with the full verification output.
+- **Cancel has weak idempotency.** A `cancel` that errors with 5xx is usually safe to verify+retry (cancelling an already-cancelled order returns a 4xx, not a duplicate). Still verify with `order open` first.
+- **`account leverage` / `account hedge`** — these are settings, not orders. A 5xx here is verifiable: re-read state with the corresponding `get` and compare. If the desired setting is already in effect, do not retry.
+- **TWAP / market-maker mid-loop** — if a slice errors, STOP the loop. Run the verification protocol. Report state to the user. Only resume if explicitly told to. Never let an unattended loop self-recover from an in-flight failure.
+- **`risk trail-watch`** — single tick error is recoverable; the next tick re-reads state. Two or more consecutive errors → stop the loop, run verification.
+- **Auth errors mid-loop** — `[401] Unauthorized` during a loop means the session expired. Run `skill-trading login`, then run the verification protocol before resuming. Do not assume the loop's last action succeeded.
+
+### Reporting back to the user
+
+When a write op fails in-flight, your report to the user should include:
+
+1. The exact command that failed
+2. The error message
+3. The output of all three verification commands
+4. Your interpretation of actual state vs intended state
+5. Your recommended next action — and whether you executed it or are waiting for confirmation
+
+Do not summarize the error away. The user needs the raw verification output to make the call.
+
+---
+
 ## WHAT NOT TO DO
 
 - Do not place an order immediately after being asked — always run the checklist first.

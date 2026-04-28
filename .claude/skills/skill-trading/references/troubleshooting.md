@@ -2,6 +2,8 @@
 
 A reference for every error message this CLI can produce, what causes it, and how to fix it.
 
+> **Before retrying any failed write operation** (orders, position close, leverage, trail-watch, twap, market-maker), see the **ERROR RECOVERY PROTOCOL** in `SKILL.md`. The protocol distinguishes pre-flight failures (safe to retry) from in-flight failures (verify state first — a blind retry can place a duplicate order).
+
 ---
 
 ## Error: `Missing credentials for exchange: <name>`

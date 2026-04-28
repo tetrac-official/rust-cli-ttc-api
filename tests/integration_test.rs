@@ -205,3 +205,127 @@ fn test_output_format_flag() {
 fn test_invalid_subcommand() {
     cmd().arg("nonexistent").assert().failure();
 }
+
+// ============================================================================
+// Config priority: CLI flag and TTC_CONFIG env var control which file loads
+// ============================================================================
+
+fn write_temp_config(contents: &str) -> std::path::PathBuf {
+    use std::io::Write;
+    let path = std::env::temp_dir().join(format!(
+        "skill-trading-it-{}-{}.toml",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let mut f = std::fs::File::create(&path).expect("create temp config");
+    f.write_all(contents.as_bytes()).expect("write");
+    path
+}
+
+/// Build a minimally valid config — `[api]`, `[trading]`, `[output]` are
+/// required (no #[serde(default)]). Extras get appended verbatim.
+fn config_with(base_url: &str, extras: &str) -> String {
+    format!(
+        r#"
+[api]
+base_url = "{base_url}"
+timeout = 30
+max_retries = 3
+retry_delay_ms = 1000
+
+[trading]
+default_size = 0.001
+default_leverage = 10
+confirm_orders = true
+dry_run = false
+
+[output]
+format = "table"
+color = true
+
+{extras}
+"#
+    )
+}
+
+// Note: the binary pre-loads `./config.toml` (or the user config) into
+// TTC_EXCHANGE before clap parses, so asserting on the `exchange` field is
+// unreliable when those discovery files exist. We assert on api.base_url
+// instead — it is loaded from the --config file and not pre-injected.
+
+#[test]
+fn test_config_flag_loads_explicit_file() {
+    let cfg = write_temp_config(&config_with("https://from-flag.example/api", ""));
+    cmd()
+        .args(["--config", cfg.to_str().unwrap(), "config", "show"])
+        .env_remove("TTC_CONFIG")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("https://from-flag.example/api"));
+    let _ = std::fs::remove_file(&cfg);
+}
+
+#[test]
+fn test_ttc_config_env_loads_file() {
+    let cfg = write_temp_config(&config_with("https://from-ttc-config-env.example/api", ""));
+    cmd()
+        .env("TTC_CONFIG", cfg.to_str().unwrap())
+        .args(["config", "show"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "https://from-ttc-config-env.example/api",
+        ));
+    let _ = std::fs::remove_file(&cfg);
+}
+
+#[test]
+fn test_cli_flag_overrides_ttc_config_env() {
+    let cfg_env = write_temp_config(&config_with("https://from-env-path.example/api", ""));
+    let cfg_flag = write_temp_config(&config_with("https://from-flag-path.example/api", ""));
+    cmd()
+        .env("TTC_CONFIG", cfg_env.to_str().unwrap())
+        .args(["--config", cfg_flag.to_str().unwrap(), "config", "show"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "https://from-flag-path.example/api",
+        ))
+        .stdout(predicate::str::contains("https://from-env-path.example/api").not());
+    let _ = std::fs::remove_file(&cfg_env);
+    let _ = std::fs::remove_file(&cfg_flag);
+}
+
+#[test]
+fn test_ttc_exchange_env_overrides_config_file() {
+    // env should beat config.toml's `exchange` field.
+    let cfg = write_temp_config(&config_with(
+        "https://ttc.box/api/v1",
+        r#"exchange = "from-config-toml""#,
+    ));
+    cmd()
+        .env("TTC_CONFIG", cfg.to_str().unwrap())
+        .env("TTC_EXCHANGE", "from-env-var")
+        .args(["config", "show"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("from-env-var"))
+        .stdout(predicate::str::contains("from-config-toml").not());
+    let _ = std::fs::remove_file(&cfg);
+}
+
+#[test]
+fn test_malformed_config_file_fails_clearly() {
+    let cfg = write_temp_config("this is not = = valid toml [[");
+    cmd()
+        .args(["--config", cfg.to_str().unwrap(), "config", "show"])
+        .env_remove("TTC_EXCHANGE")
+        .env_remove("TTC_CONFIG")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Failed to parse config file"));
+    let _ = std::fs::remove_file(&cfg);
+}

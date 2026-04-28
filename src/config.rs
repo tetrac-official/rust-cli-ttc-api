@@ -371,4 +371,362 @@ mod tests {
             config.trading.default_leverage
         );
     }
+
+    // ========================================================================
+    // Priority resolution
+    //
+    // Notes for future readers:
+    // - Top-level CLI > env > config.toml > defaults priority is wired in
+    //   src/main.rs via clap `env = "..."` attributes plus the explicit
+    //   `if let Some(ref x) = cli.x` overrides. CLI/env-driven precedence
+    //   for the binary itself is exercised in tests/integration_test.rs.
+    // - get_credentials() owns the per-exchange CLI/env/config priority and
+    //   is unit-tested below.
+    // ========================================================================
+
+    use std::sync::Mutex;
+    use uuid::Uuid;
+
+    /// Serializes tests that mutate process-wide env vars. Without this, two
+    /// tests setting different `XYZ_API_KEY` values race each other.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    struct TempConfigFile(PathBuf);
+
+    impl TempConfigFile {
+        fn new(contents: &str) -> Self {
+            let path = std::env::temp_dir()
+                .join(format!("skill-trading-test-{}.toml", Uuid::new_v4()));
+            std::fs::write(&path, contents).expect("write temp config");
+            Self(path)
+        }
+
+        fn path(&self) -> PathBuf {
+            self.0.clone()
+        }
+    }
+
+    impl Drop for TempConfigFile {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    // ---- load_from_file ----------------------------------------------------
+
+    #[test]
+    fn load_from_file_parses_full_config() {
+        let tmp = TempConfigFile::new(
+            r#"
+exchange = "bybit"
+
+[api]
+base_url = "https://example.test/api"
+timeout = 60
+max_retries = 5
+retry_delay_ms = 250
+
+[trading]
+default_size = 0.5
+default_leverage = 25
+confirm_orders = false
+dry_run = true
+min_usd_entry = 20.0
+
+[output]
+format = "json"
+color = false
+
+[portfolio]
+max_margin_utilization = 70.0
+min_liq_distance_pct = 15.0
+max_position_notional = 10000.0
+
+[watchlist]
+symbols = ["SOLUSDT", "AVAXUSDT"]
+
+[market-maker]
+limit_order_commission = 0.0
+min_spread = 0.002
+
+[exchanges.bybit]
+api_key = "bybit-key-from-toml"
+api_secret = "bybit-secret-from-toml"
+
+[exchanges.okx]
+api_key = "okx-key"
+api_secret = "okx-secret"
+passphrase = "okx-pass"
+"#,
+        );
+
+        let cfg = AppConfig::load_from_file(&Some(tmp.path())).expect("load");
+        assert_eq!(cfg.exchange.as_deref(), Some("bybit"));
+        assert_eq!(cfg.api.base_url, "https://example.test/api");
+        assert_eq!(cfg.api.timeout, 60);
+        assert_eq!(cfg.api.max_retries, 5);
+        assert_eq!(cfg.api.retry_delay_ms, 250);
+        assert_eq!(cfg.trading.default_size, 0.5);
+        assert_eq!(cfg.trading.default_leverage, 25);
+        assert!(!cfg.trading.confirm_orders);
+        assert!(cfg.trading.dry_run);
+        assert_eq!(cfg.trading.min_usd_entry, 20.0);
+        assert_eq!(cfg.output.format, "json");
+        assert!(!cfg.output.color);
+        assert_eq!(cfg.portfolio.max_margin_utilization, 70.0);
+        assert_eq!(cfg.portfolio.min_liq_distance_pct, 15.0);
+        assert_eq!(cfg.portfolio.max_position_notional, 10_000.0);
+        assert_eq!(cfg.watchlist.symbols, vec!["SOLUSDT", "AVAXUSDT"]);
+        assert_eq!(cfg.market_maker.limit_order_commission, 0.0);
+        assert_eq!(cfg.market_maker.min_spread, 0.002);
+
+        let bybit = cfg.exchanges.get("bybit").expect("bybit creds");
+        assert_eq!(bybit.api_key, "bybit-key-from-toml");
+        assert_eq!(bybit.api_secret, "bybit-secret-from-toml");
+        assert!(bybit.passphrase.is_none());
+
+        let okx = cfg.exchanges.get("okx").expect("okx creds");
+        assert_eq!(okx.passphrase.as_deref(), Some("okx-pass"));
+    }
+
+    #[test]
+    fn load_from_file_optional_sections_use_defaults_when_omitted() {
+        // [api], [trading], [output] are NOT #[serde(default)] and must be
+        // present. [portfolio], [watchlist], [market-maker], [exchanges] are
+        // optional and default when missing.
+        let tmp = TempConfigFile::new(
+            r#"
+[api]
+base_url = "https://ttc.box/api/v1"
+timeout = 30
+max_retries = 3
+retry_delay_ms = 1000
+
+[trading]
+default_size = 0.001
+default_leverage = 50
+confirm_orders = true
+dry_run = false
+
+[output]
+format = "table"
+color = true
+"#,
+        );
+        let cfg = AppConfig::load_from_file(&Some(tmp.path())).expect("load");
+        assert_eq!(cfg.trading.default_leverage, 50);
+        // Optional sections should fall back to defaults
+        assert_eq!(cfg.portfolio.max_margin_utilization, 80.0);
+        assert_eq!(cfg.portfolio.min_liq_distance_pct, 10.0);
+        assert_eq!(cfg.portfolio.max_position_notional, 5_000.0);
+        assert_eq!(
+            cfg.watchlist.symbols,
+            vec!["BTCUSDT", "ETHUSDT", "NEARUSDT"]
+        );
+        assert_eq!(cfg.market_maker.limit_order_commission, 0.001);
+        assert_eq!(cfg.market_maker.min_spread, 0.001);
+        assert!(cfg.exchanges.is_empty());
+    }
+
+    #[test]
+    fn load_from_file_missing_required_section_errors() {
+        // No [api] section — must fail with a parse error mentioning the field
+        let tmp = TempConfigFile::new(
+            r#"
+[trading]
+default_size = 0.001
+default_leverage = 10
+confirm_orders = true
+dry_run = false
+
+[output]
+format = "table"
+color = true
+"#,
+        );
+        let err = AppConfig::load_from_file(&Some(tmp.path())).expect_err("must fail");
+        let msg = format!("{}", err);
+        assert!(msg.contains("Failed to parse config file"));
+        assert!(msg.contains("api"), "should mention the missing field: {msg}");
+    }
+
+    #[test]
+    fn load_from_file_malformed_toml_returns_clear_error() {
+        let tmp = TempConfigFile::new("this is not [valid toml = =");
+        let err = AppConfig::load_from_file(&Some(tmp.path())).expect_err("must fail");
+        let msg = format!("{}", err);
+        assert!(
+            msg.contains("Failed to parse config file"),
+            "expected parse-error hint, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn load_from_file_explicit_path_is_honored() {
+        // Two configs differentiated by api.base_url; load_from_file with an
+        // explicit path must return that file's contents (not anything from
+        // discovery).
+        let make = |url: &str| {
+            format!(
+                r#"
+[api]
+base_url = "{url}"
+timeout = 30
+max_retries = 3
+retry_delay_ms = 1000
+
+[trading]
+default_size = 0.001
+default_leverage = 10
+confirm_orders = true
+dry_run = false
+
+[output]
+format = "table"
+color = true
+"#
+            )
+        };
+        let a = TempConfigFile::new(&make("https://a.example/api"));
+        let b = TempConfigFile::new(&make("https://b.example/api"));
+        assert_eq!(
+            AppConfig::load_from_file(&Some(a.path())).unwrap().api.base_url,
+            "https://a.example/api"
+        );
+        assert_eq!(
+            AppConfig::load_from_file(&Some(b.path())).unwrap().api.base_url,
+            "https://b.example/api"
+        );
+    }
+
+    // ---- get_credentials priority -----------------------------------------
+
+    #[test]
+    fn cli_global_creds_beat_per_exchange_config() {
+        // Global flags (exchange_api_key/secret) win over [exchanges.bybit]
+        let mut config = AppConfig::default();
+        config.exchange_api_key = Some("from-cli".into());
+        config.exchange_api_secret = Some("cli-secret".into());
+        config.exchanges.insert(
+            "bybit".to_string(),
+            ExchangeCredentialConfig {
+                api_key: "from-config".into(),
+                api_secret: "config-secret".into(),
+                passphrase: None,
+            },
+        );
+        let creds = config.get_credentials("bybit").unwrap();
+        assert_eq!(creds.api_key, "from-cli");
+        assert_eq!(creds.api_secret, "cli-secret");
+    }
+
+    #[test]
+    fn per_exchange_config_used_when_no_cli_or_env() {
+        // Use a fictitious exchange name so no real env var collides
+        let exch = "configonlyexa";
+        let mut config = AppConfig::default();
+        config.exchanges.insert(
+            exch.to_string(),
+            ExchangeCredentialConfig {
+                api_key: "config-key".into(),
+                api_secret: "config-secret".into(),
+                passphrase: Some("config-pass".into()),
+            },
+        );
+        let creds = config.get_credentials(exch).unwrap();
+        assert_eq!(creds.api_key, "config-key");
+        assert_eq!(creds.api_secret, "config-secret");
+        assert_eq!(creds.passphrase.as_deref(), Some("config-pass"));
+    }
+
+    #[test]
+    fn per_exchange_env_beats_config() {
+        let _g = ENV_LOCK.lock().unwrap();
+        // Unique fictitious exchange to dodge collisions with real exchanges
+        let exch = "xenva";
+        let prefix = exch.to_uppercase();
+        std::env::set_var(format!("{}_API_KEY", prefix), "env-key");
+        std::env::set_var(format!("{}_API_SECRET", prefix), "env-secret");
+
+        let mut config = AppConfig::default();
+        config.exchanges.insert(
+            exch.to_string(),
+            ExchangeCredentialConfig {
+                api_key: "config-key".into(),
+                api_secret: "config-secret".into(),
+                passphrase: None,
+            },
+        );
+
+        let creds = config.get_credentials(exch).unwrap();
+        assert_eq!(creds.api_key, "env-key");
+        assert_eq!(creds.api_secret, "env-secret");
+        assert!(creds.passphrase.is_none());
+
+        std::env::remove_var(format!("{}_API_KEY", prefix));
+        std::env::remove_var(format!("{}_API_SECRET", prefix));
+    }
+
+    #[test]
+    fn per_exchange_env_passphrase_propagates() {
+        let _g = ENV_LOCK.lock().unwrap();
+        let exch = "xenvb";
+        let prefix = exch.to_uppercase();
+        std::env::set_var(format!("{}_API_KEY", prefix), "k");
+        std::env::set_var(format!("{}_API_SECRET", prefix), "s");
+        std::env::set_var(format!("{}_API_PASSPHRASE", prefix), "p");
+
+        let creds = AppConfig::default().get_credentials(exch).unwrap();
+        assert_eq!(creds.passphrase.as_deref(), Some("p"));
+
+        std::env::remove_var(format!("{}_API_KEY", prefix));
+        std::env::remove_var(format!("{}_API_SECRET", prefix));
+        std::env::remove_var(format!("{}_API_PASSPHRASE", prefix));
+    }
+
+    #[test]
+    fn per_exchange_env_partial_falls_through_to_config() {
+        // KEY without SECRET in env → not enough; must fall through to config.
+        let _g = ENV_LOCK.lock().unwrap();
+        let exch = "xenvc";
+        let prefix = exch.to_uppercase();
+        std::env::set_var(format!("{}_API_KEY", prefix), "env-only-key");
+        // No SECRET set
+
+        let mut config = AppConfig::default();
+        config.exchanges.insert(
+            exch.to_string(),
+            ExchangeCredentialConfig {
+                api_key: "config-key".into(),
+                api_secret: "config-secret".into(),
+                passphrase: None,
+            },
+        );
+        let creds = config.get_credentials(exch).unwrap();
+        assert_eq!(creds.api_key, "config-key", "should fall through to config");
+        assert_eq!(creds.api_secret, "config-secret");
+
+        std::env::remove_var(format!("{}_API_KEY", prefix));
+    }
+
+    #[test]
+    fn cli_global_creds_beat_env() {
+        // CLI fields are checked BEFORE per-exchange env, so CLI must win.
+        let _g = ENV_LOCK.lock().unwrap();
+        let exch = "xenvd";
+        let prefix = exch.to_uppercase();
+        std::env::set_var(format!("{}_API_KEY", prefix), "env-key");
+        std::env::set_var(format!("{}_API_SECRET", prefix), "env-secret");
+
+        let mut config = AppConfig::default();
+        config.exchange_api_key = Some("cli-key".into());
+        config.exchange_api_secret = Some("cli-secret".into());
+
+        let creds = config.get_credentials(exch).unwrap();
+        assert_eq!(creds.api_key, "cli-key");
+        assert_eq!(creds.api_secret, "cli-secret");
+
+        std::env::remove_var(format!("{}_API_KEY", prefix));
+        std::env::remove_var(format!("{}_API_SECRET", prefix));
+    }
 }
