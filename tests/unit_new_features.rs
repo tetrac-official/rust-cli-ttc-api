@@ -34,12 +34,7 @@ fn test_market_maker_alias_mm() {
 #[test]
 fn test_market_maker_requires_buy_or_sell() {
     cmd()
-        .args([
-            "market-maker",
-            "-e", "orderly",
-            "-s", "BTCUSDT",
-            "-q", "1",
-        ])
+        .args(["market-maker", "-e", "orderly", "-s", "BTCUSDT", "-q", "1"])
         .assert()
         .failure()
         .stderr(predicate::str::contains("Must specify --buy or --sell"));
@@ -57,12 +52,7 @@ fn test_market_maker_requires_symbol() {
 #[test]
 fn test_market_maker_requires_quantity() {
     cmd()
-        .args([
-            "market-maker",
-            "-e", "orderly",
-            "-s", "BTCUSDT",
-            "--buy",
-        ])
+        .args(["market-maker", "-e", "orderly", "-s", "BTCUSDT", "--buy"])
         .assert()
         .failure()
         .stderr(predicate::str::contains("--quantity"));
@@ -73,11 +63,14 @@ fn test_market_maker_buy_sell_conflict() {
     cmd()
         .args([
             "market-maker",
-            "-e", "orderly",
-            "-s", "BTCUSDT",
+            "-e",
+            "orderly",
+            "-s",
+            "BTCUSDT",
             "--buy",
             "--sell",
-            "-q", "1",
+            "-q",
+            "1",
         ])
         .assert()
         .failure();
@@ -89,11 +82,15 @@ fn test_market_maker_dry_run() {
         .args([
             "--dry-run",
             "market-maker",
-            "-e", "orderly",
-            "-s", "BTCUSDT",
+            "-e",
+            "orderly",
+            "-s",
+            "BTCUSDT",
             "--buy",
-            "-q", "1",
-            "--rounds", "1",
+            "-q",
+            "1",
+            "--rounds",
+            "1",
         ])
         .assert()
         .success()
@@ -107,11 +104,15 @@ fn test_market_maker_spread_pct_default() {
         .args([
             "--dry-run",
             "market-maker",
-            "-e", "orderly",
-            "-s", "NEARUSDT",
+            "-e",
+            "orderly",
+            "-s",
+            "NEARUSDT",
             "--buy",
-            "-q", "100",
-            "--rounds", "1",
+            "-q",
+            "100",
+            "--rounds",
+            "1",
         ])
         .assert()
         .success()
@@ -124,12 +125,17 @@ fn test_market_maker_custom_spread_pct() {
         .args([
             "--dry-run",
             "market-maker",
-            "-e", "orderly",
-            "-s", "NEARUSDT",
+            "-e",
+            "orderly",
+            "-s",
+            "NEARUSDT",
             "--sell",
-            "-q", "100",
-            "--spread-pct", "0.5",
-            "--rounds", "1",
+            "-q",
+            "100",
+            "--spread-pct",
+            "0.5",
+            "--rounds",
+            "1",
         ])
         .assert()
         .success()
@@ -142,11 +148,15 @@ fn test_market_maker_rounds_header() {
         .args([
             "--dry-run",
             "market-maker",
-            "-e", "orderly",
-            "-s", "NEARUSDT",
+            "-e",
+            "orderly",
+            "-s",
+            "NEARUSDT",
             "--buy",
-            "-q", "50",
-            "--rounds", "5",
+            "-q",
+            "50",
+            "--rounds",
+            "5",
         ])
         .assert()
         .success()
@@ -200,11 +210,7 @@ fn test_brief_uses_default_exchange_from_config() {
 fn test_brief_custom_watchlist() {
     // Should accept --watchlist flag without error (may fail on API but the arg parsing succeeds)
     cmd()
-        .args([
-            "brief",
-            "-e", "orderly",
-            "--watchlist", "BTCUSDT,ETHUSDT",
-        ])
+        .args(["brief", "-e", "orderly", "--watchlist", "BTCUSDT,ETHUSDT"])
         .assert()
         // The command runs — it prints the header even if API calls fail
         .stdout(predicate::str::contains("MORNING BRIEF"));
@@ -213,11 +219,7 @@ fn test_brief_custom_watchlist() {
 #[test]
 fn test_brief_custom_timeframe() {
     cmd()
-        .args([
-            "brief",
-            "-e", "orderly",
-            "--timeframe", "4h",
-        ])
+        .args(["brief", "-e", "orderly", "--timeframe", "4h"])
         .assert()
         .stdout(predicate::str::contains("MORNING BRIEF"));
 }
@@ -250,9 +252,12 @@ fn test_twap_slice_requires_buy_or_sell() {
     cmd()
         .args([
             "twap-slice",
-            "-e", "orderly",
-            "-s", "NEARUSDT",
-            "--amount", "15",
+            "-e",
+            "orderly",
+            "-s",
+            "NEARUSDT",
+            "--amount",
+            "15",
         ])
         .assert()
         .failure()
@@ -282,11 +287,14 @@ fn test_twap_slice_buy_sell_conflict() {
     cmd()
         .args([
             "twap-slice",
-            "-e", "orderly",
-            "-s", "NEARUSDT",
+            "-e",
+            "orderly",
+            "-s",
+            "NEARUSDT",
             "--buy",
             "--sell",
-            "--amount", "15",
+            "--amount",
+            "15",
         ])
         .assert()
         .failure();
@@ -298,10 +306,13 @@ fn test_twap_slice_dry_run() {
         .args([
             "--dry-run",
             "twap-slice",
-            "-e", "orderly",
-            "-s", "NEARUSDT",
+            "-e",
+            "orderly",
+            "-s",
+            "NEARUSDT",
             "--buy",
-            "--amount", "15",
+            "--amount",
+            "15",
         ])
         .assert()
         .success()
@@ -315,11 +326,15 @@ fn test_twap_slice_dry_run_with_label() {
         .args([
             "--dry-run",
             "twap-slice",
-            "-e", "orderly",
-            "-s", "NEARUSDT",
+            "-e",
+            "orderly",
+            "-s",
+            "NEARUSDT",
             "--sell",
-            "--amount", "20",
-            "--label", "3/10",
+            "--amount",
+            "20",
+            "--label",
+            "3/10",
         ])
         .assert()
         .success()
@@ -333,11 +348,15 @@ fn test_twap_slice_dry_run_custom_decimals() {
         .args([
             "--dry-run",
             "twap-slice",
-            "-e", "orderly",
-            "-s", "BTCUSDT",
+            "-e",
+            "orderly",
+            "-s",
+            "BTCUSDT",
             "--buy",
-            "--amount", "100",
-            "--decimals", "3",
+            "--amount",
+            "100",
+            "--decimals",
+            "3",
         ])
         .assert()
         .success()

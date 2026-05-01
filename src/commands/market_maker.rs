@@ -160,11 +160,18 @@ pub async fn execute(args: MarketMakerArgs, settings: &AppConfig) -> Result<()> 
                     bba.best_ask.price.parse().unwrap_or(0.0)
                 };
                 if p <= 0.0 && !settings.trading.dry_run {
-                    eprintln!("  [{}] Got zero price from BBA — skipping round", round_label);
+                    eprintln!(
+                        "  [{}] Got zero price from BBA — skipping round",
+                        round_label
+                    );
                     tokio::time::sleep(Duration::from_millis(args.poll_ms)).await;
                     continue;
                 }
-                if p <= 0.0 { 1.0 } else { p }
+                if p <= 0.0 {
+                    1.0
+                } else {
+                    p
+                }
             }
             Err(e) if settings.trading.dry_run => {
                 eprintln!(
@@ -174,7 +181,10 @@ pub async fn execute(args: MarketMakerArgs, settings: &AppConfig) -> Result<()> 
                 1.0
             }
             Err(e) => {
-                eprintln!("  [{}] BBA fetch failed: {} — skipping round", round_label, e);
+                eprintln!(
+                    "  [{}] BBA fetch failed: {} — skipping round",
+                    round_label, e
+                );
                 tokio::time::sleep(Duration::from_millis(args.poll_ms)).await;
                 continue;
             }
@@ -197,7 +207,11 @@ pub async fn execute(args: MarketMakerArgs, settings: &AppConfig) -> Result<()> 
         );
 
         // ── 2. Place entry limit order ────────────────────────────────────
-        let entry_side = if args.buy { OrderSide::Buy } else { OrderSide::Sell };
+        let entry_side = if args.buy {
+            OrderSide::Buy
+        } else {
+            OrderSide::Sell
+        };
         let entry_params = LimitOrderParams {
             symbol: args.symbol.clone(),
             side: entry_side,
@@ -229,7 +243,10 @@ pub async fn execute(args: MarketMakerArgs, settings: &AppConfig) -> Result<()> 
         {
             Ok(o) => o,
             Err(e) => {
-                eprintln!("  [{}] Entry order failed: {} — skipping round", round_label, e);
+                eprintln!(
+                    "  [{}] Entry order failed: {} — skipping round",
+                    round_label, e
+                );
                 tokio::time::sleep(Duration::from_millis(args.poll_ms)).await;
                 continue;
             }
@@ -286,7 +303,11 @@ pub async fn execute(args: MarketMakerArgs, settings: &AppConfig) -> Result<()> 
         let exit_price_raw = exit_price(entry_price, spread, args.buy);
         let exit_price = (exit_price_raw * price_factor).round() / price_factor;
 
-        let exit_side = if args.buy { OrderSide::Sell } else { OrderSide::Buy };
+        let exit_side = if args.buy {
+            OrderSide::Sell
+        } else {
+            OrderSide::Buy
+        };
         let exit_params = LimitOrderParams {
             symbol: args.symbol.clone(),
             side: exit_side,
@@ -481,8 +502,14 @@ mod tests {
             for &dec in &[0u32, 1, 2, 4, 6] {
                 let buy_entry = round_entry_price(raw, dec, true);
                 let sell_entry = round_entry_price(raw, dec, false);
-                assert!(buy_entry <= raw + 1e-9, "buy must round down: raw={raw} dec={dec} got {buy_entry}");
-                assert!(sell_entry >= raw - 1e-9, "sell must round up: raw={raw} dec={dec} got {sell_entry}");
+                assert!(
+                    buy_entry <= raw + 1e-9,
+                    "buy must round down: raw={raw} dec={dec} got {buy_entry}"
+                );
+                assert!(
+                    sell_entry >= raw - 1e-9,
+                    "sell must round up: raw={raw} dec={dec} got {sell_entry}"
+                );
                 // And both should be on a valid tick.
                 let factor = 10f64.powi(dec as i32);
                 let buy_ticks = buy_entry * factor;
@@ -524,7 +551,10 @@ mod tests {
         approx(compute_spread(1.123, 0.00123, 0.0, 3), 0.001);
         // entry=1.123, requested=0.00150, decimals=3 → round(1.50)/1000 = 0.002 (banker's-ish)
         let r = compute_spread(1.123, 0.00150, 0.0, 3);
-        assert!((r - 0.001).abs() < 1e-9 || (r - 0.002).abs() < 1e-9, "got {r}");
+        assert!(
+            (r - 0.001).abs() < 1e-9 || (r - 0.002).abs() < 1e-9,
+            "got {r}"
+        );
     }
 
     #[test]

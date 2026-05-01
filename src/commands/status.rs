@@ -203,14 +203,14 @@ mod tests {
     impl EnvSandbox {
         fn new(keys: &[&'static str]) -> Self {
             let guard = TEST_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-            let saved = keys
-                .iter()
-                .map(|k| (*k, std::env::var(k).ok()))
-                .collect();
+            let saved = keys.iter().map(|k| (*k, std::env::var(k).ok())).collect();
             for k in keys {
                 std::env::remove_var(k);
             }
-            Self { saved, _guard: guard }
+            Self {
+                saved,
+                _guard: guard,
+            }
         }
     }
 

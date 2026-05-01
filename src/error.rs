@@ -108,7 +108,9 @@ mod tests {
         let json_err: TtcError = serde_json::from_str::<i32>("not-json").unwrap_err().into();
         assert!(!json_err.is_retryable());
 
-        let toml_err: TtcError = toml::from_str::<toml::Value>("= broken").unwrap_err().into();
+        let toml_err: TtcError = toml::from_str::<toml::Value>("= broken")
+            .unwrap_err()
+            .into();
         assert!(!toml_err.is_retryable());
     }
 
@@ -163,13 +165,17 @@ mod tests {
 
     #[test]
     fn from_serde_json_error_produces_serialization_variant() {
-        let e: TtcError = serde_json::from_str::<serde_json::Value>("{not json").unwrap_err().into();
+        let e: TtcError = serde_json::from_str::<serde_json::Value>("{not json")
+            .unwrap_err()
+            .into();
         assert!(matches!(e, TtcError::Serialization(_)));
     }
 
     #[test]
     fn from_toml_error_produces_toml_variant() {
-        let e: TtcError = toml::from_str::<toml::Value>("= broken").unwrap_err().into();
+        let e: TtcError = toml::from_str::<toml::Value>("= broken")
+            .unwrap_err()
+            .into();
         assert!(matches!(e, TtcError::Toml(_)));
     }
 

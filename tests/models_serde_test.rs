@@ -137,18 +137,16 @@ fn balance_accepts_string_quoted_numbers() {
 
 #[test]
 fn balance_accepts_missing_locked_field() {
-    let b: Balance =
-        serde_json::from_str(r#"{"asset":"USDT","balance":100.0,"available":100.0}"#)
-            .expect("parse");
+    let b: Balance = serde_json::from_str(r#"{"asset":"USDT","balance":100.0,"available":100.0}"#)
+        .expect("parse");
     assert!(b.locked.is_none());
 }
 
 #[test]
 fn balance_accepts_null_locked() {
-    let b: Balance = serde_json::from_str(
-        r#"{"asset":"USDT","balance":100.0,"available":100.0,"locked":null}"#,
-    )
-    .expect("parse");
+    let b: Balance =
+        serde_json::from_str(r#"{"asset":"USDT","balance":100.0,"available":100.0,"locked":null}"#)
+            .expect("parse");
     assert!(b.locked.is_none());
 }
 
@@ -156,10 +154,9 @@ fn balance_accepts_null_locked() {
 fn balance_accepts_empty_string_locked() {
     // deserialize_opt_f64_or_string treats "" as None — exchanges that return
     // "" for unset numeric fields don't break parsing.
-    let b: Balance = serde_json::from_str(
-        r#"{"asset":"USDT","balance":100.0,"available":100.0,"locked":""}"#,
-    )
-    .expect("empty string locked should map to None");
+    let b: Balance =
+        serde_json::from_str(r#"{"asset":"USDT","balance":100.0,"available":100.0,"locked":""}"#)
+            .expect("empty string locked should map to None");
     assert!(b.locked.is_none());
 }
 
@@ -281,20 +278,16 @@ fn order_accepts_id_alias() {
 
 #[test]
 fn order_accepts_order_id_field() {
-    let o: Order = serde_json::from_str(
-        r#"{"orderId":"abc-456","symbol":"BTCUSDT","quantity":1.0}"#,
-    )
-    .unwrap();
+    let o: Order =
+        serde_json::from_str(r#"{"orderId":"abc-456","symbol":"BTCUSDT","quantity":1.0}"#).unwrap();
     assert_eq!(o.order_id, "abc-456");
 }
 
 #[test]
 fn order_accepts_integer_id() {
     // Some exchanges return numeric order IDs.
-    let o: Order = serde_json::from_str(
-        r#"{"id":123456789,"symbol":"BTCUSDT","quantity":1.0}"#,
-    )
-    .unwrap();
+    let o: Order =
+        serde_json::from_str(r#"{"id":123456789,"symbol":"BTCUSDT","quantity":1.0}"#).unwrap();
     assert_eq!(o.order_id, "123456789");
 }
 
@@ -308,10 +301,7 @@ fn order_accepts_type_alias() {
 
 #[test]
 fn order_optional_fill_fields_are_none_by_default() {
-    let o: Order = serde_json::from_str(
-        r#"{"id":"x","symbol":"BTCUSDT","quantity":1.0}"#,
-    )
-    .unwrap();
+    let o: Order = serde_json::from_str(r#"{"id":"x","symbol":"BTCUSDT","quantity":1.0}"#).unwrap();
     assert!(o.filled_quantity.is_none());
     assert!(o.average_price.is_none());
 }
@@ -361,10 +351,16 @@ fn parses_standx_market_order_response_envelope_and_order() {
     assert_eq!(env.message.as_deref(), Some("success"), "msg → message");
 
     let o = env.data;
-    assert_eq!(o.order_id, "", "empty-string id is allowed on String fields");
+    assert_eq!(
+        o.order_id, "",
+        "empty-string id is allowed on String fields"
+    );
     assert_eq!(o.symbol, "btcusdt");
     assert_eq!(o.side, "sell");
-    assert_eq!(o.order_type, "market", "type alias must populate order_type");
+    assert_eq!(
+        o.order_type, "market",
+        "type alias must populate order_type"
+    );
     assert_eq!(o.quantity, 0.001);
     assert_eq!(o.filled_quantity, Some(0.0), "filled alias");
     assert_eq!(o.average_price, Some(0.0), "avgFillPrice alias");
@@ -376,8 +372,7 @@ fn parses_standx_market_order_response_envelope_and_order() {
 fn api_response_msg_alias_parses() {
     // standx uses "msg" instead of "error"/"message" on failure too.
     let r: ApiResponse<i32> =
-        serde_json::from_str(r#"{"success":false,"data":0,"msg":"insufficient balance"}"#)
-            .unwrap();
+        serde_json::from_str(r#"{"success":false,"data":0,"msg":"insufficient balance"}"#).unwrap();
     assert_eq!(r.message.as_deref(), Some("insufficient balance"));
 }
 
@@ -433,8 +428,7 @@ fn api_response_success_with_data_parses() {
 #[test]
 fn api_response_message_field_parses() {
     let r: ApiResponse<i32> =
-        serde_json::from_str(r#"{"success":false,"data":0,"message":"upstream timeout"}"#)
-            .unwrap();
+        serde_json::from_str(r#"{"success":false,"data":0,"message":"upstream timeout"}"#).unwrap();
     assert_eq!(r.message.as_deref(), Some("upstream timeout"));
 }
 

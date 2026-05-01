@@ -429,9 +429,7 @@ mod tests {
         fn new() -> Self {
             // Recover from poisoning so a panicking test doesn't cascade
             // failures across every other test that also takes this lock.
-            let guard = TEST_ENV_LOCK
-                .lock()
-                .unwrap_or_else(|p| p.into_inner());
+            let guard = TEST_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
             let prev_home = std::env::var("HOME").ok();
             let path = std::env::temp_dir().join(format!("twap-test-home-{}", Uuid::new_v4()));
             std::fs::create_dir_all(&path).unwrap();

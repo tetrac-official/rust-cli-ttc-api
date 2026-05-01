@@ -395,8 +395,8 @@ mod tests {
 
     impl TempConfigFile {
         fn new(contents: &str) -> Self {
-            let path = std::env::temp_dir()
-                .join(format!("skill-trading-test-{}.toml", Uuid::new_v4()));
+            let path =
+                std::env::temp_dir().join(format!("skill-trading-test-{}.toml", Uuid::new_v4()));
             std::fs::write(&path, contents).expect("write temp config");
             Self(path)
         }
@@ -547,7 +547,10 @@ color = true
         let err = AppConfig::load_from_file(&Some(tmp.path())).expect_err("must fail");
         let msg = format!("{}", err);
         assert!(msg.contains("Failed to parse config file"));
-        assert!(msg.contains("api"), "should mention the missing field: {msg}");
+        assert!(
+            msg.contains("api"),
+            "should mention the missing field: {msg}"
+        );
     }
 
     #[test]
@@ -590,11 +593,17 @@ color = true
         let a = TempConfigFile::new(&make("https://a.example/api"));
         let b = TempConfigFile::new(&make("https://b.example/api"));
         assert_eq!(
-            AppConfig::load_from_file(&Some(a.path())).unwrap().api.base_url,
+            AppConfig::load_from_file(&Some(a.path()))
+                .unwrap()
+                .api
+                .base_url,
             "https://a.example/api"
         );
         assert_eq!(
-            AppConfig::load_from_file(&Some(b.path())).unwrap().api.base_url,
+            AppConfig::load_from_file(&Some(b.path()))
+                .unwrap()
+                .api
+                .base_url,
             "https://b.example/api"
         );
     }

@@ -76,9 +76,7 @@ pub fn parse_position_side(s: &str) -> PositionSide {
 /// - Quantity that is non-finite (NaN, ±inf), zero, or negative.
 pub fn validate_order_inputs(symbol: &str, quantity: f64) -> Result<()> {
     if symbol.trim().is_empty() {
-        return Err(TtcError::InvalidOrder(
-            "--symbol must not be empty".into(),
-        ));
+        return Err(TtcError::InvalidOrder("--symbol must not be empty".into()));
     }
     if !quantity.is_finite() || quantity <= 0.0 {
         return Err(TtcError::InvalidOrder(format!(
@@ -136,7 +134,9 @@ mod tests {
         // recovery protocol knows which arg to fix.
         let e = validate_order_inputs("", 1.0).unwrap_err().to_string();
         assert!(e.contains("--symbol"));
-        let e = validate_order_inputs("BTCUSDT", -1.0).unwrap_err().to_string();
+        let e = validate_order_inputs("BTCUSDT", -1.0)
+            .unwrap_err()
+            .to_string();
         assert!(e.contains("--quantity"));
     }
 }

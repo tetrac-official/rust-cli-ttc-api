@@ -529,9 +529,7 @@ mod tests {
 
     impl SandboxedHome {
         fn new() -> Self {
-            let guard = TEST_ENV_LOCK
-                .lock()
-                .unwrap_or_else(|p| p.into_inner());
+            let guard = TEST_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
             let prev_home = std::env::var("HOME").ok();
             let path = std::env::temp_dir().join(format!("trail-watch-test-{}", Uuid::new_v4()));
             std::fs::create_dir_all(&path).unwrap();
@@ -641,9 +639,10 @@ mod tests {
             updated_at: "2026-04-28T12:00:00Z".into(),
         };
         save_trail_watch_progress(&p);
-        let v: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(trail_watch_path(&p.symbol, &p.exchange)).unwrap())
-                .unwrap();
+        let v: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(trail_watch_path(&p.symbol, &p.exchange)).unwrap(),
+        )
+        .unwrap();
         assert!(v["peak_price"].is_null());
         assert!(v["current_stop"].is_null());
         assert!(v["stop_order_id"].is_null());
@@ -679,9 +678,10 @@ mod tests {
         p.current_stop = Some(31_850.0);
         save_trail_watch_progress(&p);
 
-        let v: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(trail_watch_path(&p.symbol, &p.exchange)).unwrap())
-                .unwrap();
+        let v: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(trail_watch_path(&p.symbol, &p.exchange)).unwrap(),
+        )
+        .unwrap();
         assert_eq!(v["mark_price"], 32_000.0);
         assert_eq!(v["peak_price"], 32_500.0);
         assert_eq!(v["current_stop"], 31_850.0);

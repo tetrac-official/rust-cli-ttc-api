@@ -557,7 +557,9 @@ pub struct FundingRate {
     pub exchange: String,
     pub symbol: String,
     pub funding_rate: f64,
-    pub next_funding_time: i64,
+    // Some exchanges (e.g. standx) omit this field; tolerate its absence.
+    #[serde(default)]
+    pub next_funding_time: Option<i64>,
     pub timestamp: i64,
     #[serde(default)]
     pub open_interest: Option<f64>,

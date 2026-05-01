@@ -198,8 +198,7 @@ pub async fn execute(
 
                     // Notional line — warn if oversized
                     let notional_str = if warn_notional {
-                        format!("${:.2}  {}", notional, "[WARN — oversized]".yellow())
-                            .to_string()
+                        format!("${:.2}  {}", notional, "[WARN — oversized]".yellow()).to_string()
                     } else {
                         format!("${:.2}", notional)
                     };

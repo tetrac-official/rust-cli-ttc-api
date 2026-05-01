@@ -163,7 +163,10 @@ async fn main() -> Result<()> {
     // Skip for commands that don't need auth or that manage auth themselves
     let skip_refresh = matches!(
         cli.command,
-        cli::Commands::Login(_) | cli::Commands::Register(_) | cli::Commands::Info | cli::Commands::Config(_)
+        cli::Commands::Login(_)
+            | cli::Commands::Register(_)
+            | cli::Commands::Info
+            | cli::Commands::Config(_)
     );
     if !skip_refresh {
         match commands::login::try_silent_refresh(&settings).await {

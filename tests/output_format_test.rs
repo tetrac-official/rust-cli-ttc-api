@@ -463,8 +463,7 @@ async fn json_stdout_is_pristine_no_status_or_log_lines() {
         trimmed.starts_with('['),
         "stdout must begin with the JSON array, got:\n{stdout}"
     );
-    let _: serde_json::Value =
-        serde_json::from_str(trimmed).expect("entire stdout parses as JSON");
+    let _: serde_json::Value = serde_json::from_str(trimmed).expect("entire stdout parses as JSON");
 
     let _ = std::fs::remove_file(&cfg);
 }
@@ -533,7 +532,11 @@ async fn quiet_stdout_is_pristine_only_data_lines() {
         .clone();
     let stdout = String::from_utf8(out).unwrap();
     let data: Vec<&str> = stdout.lines().filter(|l| !l.is_empty()).collect();
-    assert_eq!(data, vec!["USDT:100"], "quiet stdout must contain ONLY the data lines, got: {stdout:?}");
+    assert_eq!(
+        data,
+        vec!["USDT:100"],
+        "quiet stdout must contain ONLY the data lines, got: {stdout:?}"
+    );
 
     let _ = std::fs::remove_file(&cfg);
 }
