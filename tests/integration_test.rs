@@ -39,12 +39,15 @@ fn test_info_command() {
 
 #[test]
 fn test_config_path_command() {
+    // "Config file location:" is a status message → stderr.
+    // The actual path is data → stdout (always contains the literal "config.toml").
     cmd()
         .arg("config")
         .arg("path")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Config file"));
+        .stderr(predicate::str::contains("Config file"))
+        .stdout(predicate::str::contains("config.toml"));
 }
 
 #[test]
@@ -204,4 +207,299 @@ fn test_output_format_flag() {
 #[test]
 fn test_invalid_subcommand() {
     cmd().arg("nonexistent").assert().failure();
+}
+
+// ============================================================================
+// Config priority: CLI flag and TTC_CONFIG env var control which file loads
+// ============================================================================
+
+fn write_temp_config(contents: &str) -> std::path::PathBuf {
+    use std::io::Write;
+    let path = std::env::temp_dir().join(format!(
+        "skill-trading-it-{}-{}.toml",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let mut f = std::fs::File::create(&path).expect("create temp config");
+    f.write_all(contents.as_bytes()).expect("write");
+    path
+}
+
+/// Build a minimally valid config — `[api]`, `[trading]`, `[output]` are
+/// required (no #[serde(default)]). Extras get appended verbatim.
+fn config_with(base_url: &str, extras: &str) -> String {
+    format!(
+        r#"
+[api]
+base_url = "{base_url}"
+timeout = 30
+max_retries = 3
+retry_delay_ms = 1000
+
+[trading]
+default_size = 0.001
+default_leverage = 10
+confirm_orders = true
+dry_run = false
+
+[output]
+format = "table"
+color = true
+
+{extras}
+"#
+    )
+}
+
+// Note: the binary pre-loads `./config.toml` (or the user config) into
+// TTC_EXCHANGE before clap parses, so asserting on the `exchange` field is
+// unreliable when those discovery files exist. We assert on api.base_url
+// instead — it is loaded from the --config file and not pre-injected.
+
+#[test]
+fn test_config_flag_loads_explicit_file() {
+    let cfg = write_temp_config(&config_with("https://from-flag.example/api", ""));
+    cmd()
+        .args(["--config", cfg.to_str().unwrap(), "config", "show"])
+        .env_remove("TTC_CONFIG")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("https://from-flag.example/api"));
+    let _ = std::fs::remove_file(&cfg);
+}
+
+#[test]
+fn test_ttc_config_env_loads_file() {
+    let cfg = write_temp_config(&config_with("https://from-ttc-config-env.example/api", ""));
+    cmd()
+        .env("TTC_CONFIG", cfg.to_str().unwrap())
+        .args(["config", "show"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "https://from-ttc-config-env.example/api",
+        ));
+    let _ = std::fs::remove_file(&cfg);
+}
+
+#[test]
+fn test_cli_flag_overrides_ttc_config_env() {
+    let cfg_env = write_temp_config(&config_with("https://from-env-path.example/api", ""));
+    let cfg_flag = write_temp_config(&config_with("https://from-flag-path.example/api", ""));
+    cmd()
+        .env("TTC_CONFIG", cfg_env.to_str().unwrap())
+        .args(["--config", cfg_flag.to_str().unwrap(), "config", "show"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "https://from-flag-path.example/api",
+        ))
+        .stdout(predicate::str::contains("https://from-env-path.example/api").not());
+    let _ = std::fs::remove_file(&cfg_env);
+    let _ = std::fs::remove_file(&cfg_flag);
+}
+
+#[test]
+fn test_ttc_exchange_env_overrides_config_file() {
+    // env should beat config.toml's `exchange` field.
+    let cfg = write_temp_config(&config_with(
+        "https://ttc.box/api/v1",
+        r#"exchange = "from-config-toml""#,
+    ));
+    cmd()
+        .env("TTC_CONFIG", cfg.to_str().unwrap())
+        .env("TTC_EXCHANGE", "from-env-var")
+        .args(["config", "show"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("from-env-var"))
+        .stdout(predicate::str::contains("from-config-toml").not());
+    let _ = std::fs::remove_file(&cfg);
+}
+
+// ============================================================================
+// Boundary validation — local rejection of bad inputs before they hit the
+// network. Catching these early gives an agent an immediate, actionable
+// error instead of waiting for the upstream exchange to reject with 400.
+// ============================================================================
+
+#[test]
+fn test_negative_quantity_rejected_for_market_order() {
+    cmd()
+        .args([
+            "order", "market", "-e", "phemex", "-s", "BTCUSDT", "--buy", "-q", "-0.001",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--quantity"));
+}
+
+#[test]
+fn test_zero_quantity_rejected_for_limit_order() {
+    cmd()
+        .args([
+            "--dry-run",
+            "order",
+            "limit",
+            "-e",
+            "phemex",
+            "-s",
+            "BTCUSDT",
+            "--buy",
+            "-q",
+            "0",
+            "-p",
+            "50000",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("positive"));
+}
+
+#[test]
+fn test_empty_symbol_rejected_for_limit_order() {
+    cmd()
+        .args([
+            "--dry-run",
+            "order",
+            "limit",
+            "-e",
+            "phemex",
+            "-s",
+            "",
+            "--buy",
+            "-q",
+            "0.001",
+            "-p",
+            "50000",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--symbol"));
+}
+
+#[test]
+fn test_whitespace_only_symbol_rejected() {
+    cmd()
+        .args([
+            "--dry-run",
+            "order",
+            "market",
+            "-e",
+            "phemex",
+            "-s",
+            "   ",
+            "--sell",
+            "-q",
+            "0.001",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--symbol"));
+}
+
+#[test]
+fn test_negative_price_rejected_for_limit_order() {
+    cmd()
+        .args([
+            "--dry-run",
+            "order",
+            "limit",
+            "-e",
+            "phemex",
+            "-s",
+            "BTCUSDT",
+            "--buy",
+            "-q",
+            "0.001",
+            "-p",
+            "-1",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--price"));
+}
+
+#[test]
+fn test_negative_quantity_rejected_for_market_maker() {
+    cmd()
+        .args([
+            "--dry-run",
+            "market-maker",
+            "-e",
+            "orderly",
+            "-s",
+            "BTCUSDT",
+            "--buy",
+            "-q",
+            "-1",
+            "--rounds",
+            "1",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--quantity"));
+}
+
+#[test]
+fn test_market_maker_rounds_zero_in_dry_run_terminates() {
+    // Default --rounds is 0 (= until Ctrl-C in real runs). In dry-run the
+    // loop has no fill-polling, so 0 would mean an infinite tight loop —
+    // we cap it to 1 in dry-run so the command terminates with a single
+    // preview line.
+    cmd()
+        .args([
+            "--dry-run",
+            "market-maker",
+            "-e",
+            "orderly",
+            "-s",
+            "BTCUSDT",
+            "--buy",
+            "-q",
+            "1",
+            "--rounds",
+            "0",
+        ])
+        .timeout(std::time::Duration::from_secs(10))
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("DRY-RUN"));
+}
+
+#[test]
+fn test_high_leverage_passes_through_without_local_clamp() {
+    // Leverage validation lives at the exchange — the CLI doesn't second-guess
+    // exchange-specific maxes. Dry-run accepts any positive leverage cleanly.
+    cmd()
+        .args([
+            "--dry-run",
+            "account",
+            "leverage",
+            "-e",
+            "phemex",
+            "-s",
+            "BTCUSDT",
+            "-l",
+            "9999",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("DRY-RUN"));
+}
+
+#[test]
+fn test_malformed_config_file_fails_clearly() {
+    let cfg = write_temp_config("this is not = = valid toml [[");
+    cmd()
+        .args(["--config", cfg.to_str().unwrap(), "config", "show"])
+        .env_remove("TTC_EXCHANGE")
+        .env_remove("TTC_CONFIG")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Failed to parse config file"));
+    let _ = std::fs::remove_file(&cfg);
 }

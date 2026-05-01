@@ -2,11 +2,13 @@
 
 A reference for every error message this CLI can produce, what causes it, and how to fix it.
 
+> **Before retrying any failed write operation** (orders, position close, leverage, trail-watch, twap, market-maker), see the **ERROR RECOVERY PROTOCOL** in `SKILL.md`. The protocol distinguishes pre-flight failures (safe to retry) from in-flight failures (verify state first — a blind retry can place a duplicate order).
+
 ---
 
 ## Error: `Missing credentials for exchange: <name>`
 
-**Cause:** The CLI could not find an API key and secret for the requested exchange. Neither the CLI flags, the `.env` file, nor `config.toml` contained credentials for that exchange.
+**Cause:** The CLI could not find an API key and secret for the requested exchange. Neither the CLI flags nor the `.env` file contained credentials for that exchange. (API keys never live in `config.toml` — that file holds non-secret preferences only.)
 
 **Fix:**
 1. Open `.env` in the project directory

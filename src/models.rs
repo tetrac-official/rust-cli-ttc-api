@@ -56,7 +56,9 @@ where
     deserializer.deserialize_any(F64OrString)
 }
 
-/// Deserialize an optional f64 that may be missing, null, a number, or a quoted string.
+/// Deserialize an optional f64 that may be missing, null, a number, a quoted
+/// number, or an empty string. Empty string → None (some exchanges use "" for
+/// "unset" on fields like liquidationPrice, avgFillPrice, etc.).
 fn deserialize_opt_f64_or_string<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
 where
     D: Deserializer<'de>,
@@ -66,7 +68,10 @@ where
     impl<'de> Visitor<'de> for OptF64OrString {
         type Value = Option<f64>;
         fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "a number, a string containing a number, or null")
+            write!(
+                f,
+                "a number, a string containing a number, an empty string, or null"
+            )
         }
         fn visit_none<E: de::Error>(self) -> Result<Option<f64>, E> {
             Ok(None)
@@ -74,8 +79,11 @@ where
         fn visit_unit<E: de::Error>(self) -> Result<Option<f64>, E> {
             Ok(None)
         }
+        // Re-dispatch via deserialize_any so visit_str on this same visitor is
+        // reachable. Previously this delegated to deserialize_f64_or_string,
+        // whose visit_str called v.parse() directly and rejected "".
         fn visit_some<D2: Deserializer<'de>>(self, d: D2) -> Result<Option<f64>, D2::Error> {
-            deserialize_f64_or_string(d).map(Some)
+            d.deserialize_any(OptF64OrString)
         }
         fn visit_f64<E: de::Error>(self, v: f64) -> Result<Option<f64>, E> {
             Ok(Some(v))
@@ -344,7 +352,8 @@ pub struct ApiResponse<T> {
     pub data: T,
     #[serde(default)]
     pub code: u16,
-    #[serde(default, alias = "error")]
+    // standx returns "msg" instead of "error" or "message"; alias both.
+    #[serde(default, alias = "error", alias = "msg")]
     pub message: Option<String>,
 }
 
@@ -377,9 +386,20 @@ pub struct Order {
     pub status: String,
     #[serde(default)]
     pub timestamp: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    // standx returns "filled" / "avgFillPrice"; aliases let those map cleanly.
+    #[serde(
+        default,
+        alias = "filled",
+        deserialize_with = "deserialize_opt_f64_or_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub filled_quantity: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        alias = "avgFillPrice",
+        deserialize_with = "deserialize_opt_f64_or_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub average_price: Option<f64>,
 }
 
@@ -537,7 +557,9 @@ pub struct FundingRate {
     pub exchange: String,
     pub symbol: String,
     pub funding_rate: f64,
-    pub next_funding_time: i64,
+    // Some exchanges (e.g. standx) omit this field; tolerate its absence.
+    #[serde(default)]
+    pub next_funding_time: Option<i64>,
     pub timestamp: i64,
     #[serde(default)]
     pub open_interest: Option<f64>,

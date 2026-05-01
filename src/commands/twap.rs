@@ -406,3 +406,176 @@ pub async fn execute(args: TwapArgs, settings: &AppConfig) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    //! State-file lifecycle for the TWAP loop.
+    //!
+    //! These tests sandbox $HOME to a unique temp dir per test so they don't
+    //! touch the real ~/.twap-*.json files. HOME is process-global, so a
+    //! Mutex serializes access.
+
+    use super::*;
+    use crate::commands::common::TEST_ENV_LOCK;
+    use uuid::Uuid;
+
+    struct SandboxedHome {
+        path: PathBuf,
+        prev_home: Option<String>,
+        _guard: std::sync::MutexGuard<'static, ()>,
+    }
+
+    impl SandboxedHome {
+        fn new() -> Self {
+            // Recover from poisoning so a panicking test doesn't cascade
+            // failures across every other test that also takes this lock.
+            let guard = TEST_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+            let prev_home = std::env::var("HOME").ok();
+            let path = std::env::temp_dir().join(format!("twap-test-home-{}", Uuid::new_v4()));
+            std::fs::create_dir_all(&path).unwrap();
+            std::env::set_var("HOME", &path);
+            Self {
+                path,
+                prev_home,
+                _guard: guard,
+            }
+        }
+    }
+
+    impl Drop for SandboxedHome {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+            match &self.prev_home {
+                Some(h) => std::env::set_var("HOME", h),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+    }
+
+    fn fixture_state(symbol: &str, exchange: &str) -> TwapState {
+        TwapState {
+            symbol: symbol.into(),
+            exchange: exchange.into(),
+            side: "buy".into(),
+            budget: 100.0,
+            hours: 1.0,
+            slices: 10,
+            interval_secs: 360,
+            slice_usd: 10.0,
+            decimals: 4,
+            leverage: Some(5),
+            filled_slices: 3,
+            total_spent: 30.5,
+            total_qty: 0.001,
+            completed_indices: vec![1, 2, 3],
+        }
+    }
+
+    #[test]
+    fn state_path_is_dotfile_in_home() {
+        let _h = SandboxedHome::new();
+        let p = state_path("BTCUSDT", "Orderly");
+        let parent = p.parent().unwrap();
+        assert_eq!(parent, std::env::var_os("HOME").map(PathBuf::from).unwrap());
+        assert_eq!(
+            p.file_name().unwrap().to_str().unwrap(),
+            ".twap-btcusdt-orderly.json",
+            "must lowercase symbol+exchange and use the .twap- prefix"
+        );
+    }
+
+    #[test]
+    fn state_path_lowercases_mixed_case_inputs() {
+        let _h = SandboxedHome::new();
+        let p1 = state_path("NeArUsDt", "OrDeRlY");
+        let p2 = state_path("nearusdt", "orderly");
+        assert_eq!(p1, p2);
+    }
+
+    #[test]
+    fn save_then_load_round_trips_all_fields() {
+        let _h = SandboxedHome::new();
+        let original = fixture_state("LRTBTC", "phemex");
+        save_state(&original);
+        let loaded = load_state(&original.symbol, &original.exchange).expect("loaded");
+
+        assert_eq!(loaded.symbol, original.symbol);
+        assert_eq!(loaded.exchange, original.exchange);
+        assert_eq!(loaded.side, original.side);
+        assert_eq!(loaded.budget, original.budget);
+        assert_eq!(loaded.hours, original.hours);
+        assert_eq!(loaded.slices, original.slices);
+        assert_eq!(loaded.interval_secs, original.interval_secs);
+        assert_eq!(loaded.slice_usd, original.slice_usd);
+        assert_eq!(loaded.decimals, original.decimals);
+        assert_eq!(loaded.leverage, original.leverage);
+        assert_eq!(loaded.filled_slices, original.filled_slices);
+        assert_eq!(loaded.total_spent, original.total_spent);
+        assert_eq!(loaded.total_qty, original.total_qty);
+        assert_eq!(loaded.completed_indices, original.completed_indices);
+    }
+
+    #[test]
+    fn save_writes_pretty_printed_json_that_parses_directly() {
+        let _h = SandboxedHome::new();
+        let s = fixture_state("MIDBTC", "bybit");
+        save_state(&s);
+        let raw = std::fs::read_to_string(state_path(&s.symbol, &s.exchange)).unwrap();
+        // Pretty-printed → contains a newline.
+        assert!(raw.contains('\n'), "expected pretty-printed JSON");
+        // Parse as serde_json::Value to confirm it's valid JSON, no schema lock-in.
+        let v: serde_json::Value = serde_json::from_str(&raw).expect("valid JSON on disk");
+        assert_eq!(v["symbol"], "MIDBTC");
+        assert_eq!(v["exchange"], "bybit");
+        assert!(v["completed_indices"].is_array());
+    }
+
+    #[test]
+    fn load_state_returns_none_for_missing_file() {
+        let _h = SandboxedHome::new();
+        assert!(load_state("DOESNOTEXIST", "novatech").is_none());
+    }
+
+    #[test]
+    fn load_state_returns_none_for_malformed_json() {
+        let _h = SandboxedHome::new();
+        let path = state_path("BADJSON", "fakex");
+        std::fs::write(&path, "{not valid json").unwrap();
+        assert!(
+            load_state("BADJSON", "fakex").is_none(),
+            "malformed JSON must surface as None, not panic"
+        );
+    }
+
+    #[test]
+    fn delete_state_removes_the_file() {
+        let _h = SandboxedHome::new();
+        let s = fixture_state("DELME", "exch");
+        save_state(&s);
+        assert!(state_path("DELME", "exch").exists());
+        delete_state("DELME", "exch");
+        assert!(!state_path("DELME", "exch").exists());
+        assert!(load_state("DELME", "exch").is_none());
+    }
+
+    #[test]
+    fn delete_state_for_missing_file_is_a_noop() {
+        // Ensures we don't panic when tearing down a TWAP that was never saved.
+        let _h = SandboxedHome::new();
+        delete_state("NEVER", "saved");
+    }
+
+    #[test]
+    fn resume_preserves_completed_indices_for_skip_logic() {
+        // The TWAP loop uses completed_indices to skip already-filled slices
+        // on resume. A round-trip must preserve order and values exactly.
+        let _h = SandboxedHome::new();
+        let mut s = fixture_state("RSME", "exch");
+        s.completed_indices = vec![1, 3, 4, 7];
+        s.filled_slices = 4;
+        save_state(&s);
+        let loaded = load_state(&s.symbol, &s.exchange).unwrap();
+        assert_eq!(loaded.completed_indices, vec![1, 3, 4, 7]);
+        assert_eq!(loaded.filled_slices, 4);
+    }
+}

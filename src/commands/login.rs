@@ -62,18 +62,12 @@ pub async fn try_silent_refresh(settings: &AppConfig) -> Result<bool> {
     }
 
     // Need email + passkey to refresh silently
-    let email = match std::env::var("TTC_EMAIL")
-        .ok()
-        .filter(|s| !s.is_empty())
-    {
+    let email = match std::env::var("TTC_EMAIL").ok().filter(|s| !s.is_empty()) {
         Some(e) => e,
         None => return Ok(false),
     };
 
-    let pass_key = match std::env::var("TTC_PASSKEY")
-        .ok()
-        .filter(|s| !s.is_empty())
-    {
+    let pass_key = match std::env::var("TTC_PASSKEY").ok().filter(|s| !s.is_empty()) {
         Some(p) => p,
         None => return Ok(false),
     };
@@ -111,7 +105,10 @@ pub async fn try_silent_refresh(settings: &AppConfig) -> Result<bool> {
             .error
             .or(body.message)
             .unwrap_or_else(|| format!("Token refresh failed (HTTP {})", status));
-        return Err(TtcError::Api { code: status, message: msg });
+        return Err(TtcError::Api {
+            code: status,
+            message: msg,
+        });
     }
 
     let auth_token = body.auth_token.unwrap();

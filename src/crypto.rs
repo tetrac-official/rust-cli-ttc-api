@@ -166,3 +166,236 @@ fn evp_bytes_to_key(password: &[u8], salt: &[u8]) -> ([u8; 32], [u8; 16]) {
     iv.copy_from_slice(&d3);
     (key, iv)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cbc::cipher::{block_padding::Pkcs7, BlockDecryptMut};
+    use ed25519_dalek::{Signer, Verifier};
+
+    type Aes256CbcDec = cbc::Decryptor<Aes256>;
+
+    fn is_lowercase_hex(s: &str) -> bool {
+        s.chars()
+            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+    }
+
+    fn decrypt_crypto_es(ciphertext_b64: &str, api_key: &str) -> Option<String> {
+        let raw = BASE64.decode(ciphertext_b64).ok()?;
+        if raw.len() < 16 || &raw[..8] != b"Salted__" {
+            return None;
+        }
+        let salt: [u8; 8] = raw[8..16].try_into().ok()?;
+        let body = &raw[16..];
+        let (key, iv) = evp_bytes_to_key(api_key.as_bytes(), &salt);
+        let mut buf = body.to_vec();
+        let pt = Aes256CbcDec::new(&key.into(), &iv.into())
+            .decrypt_padded_mut::<Pkcs7>(&mut buf)
+            .ok()?;
+        String::from_utf8(pt.to_vec()).ok()
+    }
+
+    // ---- derive_api_key ----------------------------------------------------
+
+    #[test]
+    fn derive_api_key_is_deterministic() {
+        let a = derive_api_key("hunter2", "alice@example.com");
+        let b = derive_api_key("hunter2", "alice@example.com");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn derive_api_key_normalizes_email() {
+        let canonical = derive_api_key("pk", "alice@example.com");
+        assert_eq!(derive_api_key("pk", "ALICE@EXAMPLE.COM"), canonical);
+        assert_eq!(derive_api_key("pk", "  Alice@Example.com  "), canonical);
+    }
+
+    #[test]
+    fn derive_api_key_returns_64_lowercase_hex() {
+        let k = derive_api_key("pk", "a@b.com");
+        assert_eq!(k.len(), 64);
+        assert!(is_lowercase_hex(&k), "not lowercase hex: {k}");
+    }
+
+    #[test]
+    fn derive_api_key_different_passkeys_differ() {
+        let a = derive_api_key("pk-one", "a@b.com");
+        let b = derive_api_key("pk-two", "a@b.com");
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn derive_api_key_different_emails_differ() {
+        let a = derive_api_key("pk", "a@b.com");
+        let b = derive_api_key("pk", "c@d.com");
+        assert_ne!(a, b);
+    }
+
+    // ---- hash_passkey_for_server ------------------------------------------
+
+    #[test]
+    fn hash_passkey_for_server_matches_known_vector() {
+        // SHA-256("abc") — RFC 6234 / FIPS 180-4 test vector
+        assert_eq!(
+            hash_passkey_for_server("abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    #[test]
+    fn hash_passkey_for_server_returns_64_lowercase_hex() {
+        let h = hash_passkey_for_server("anything");
+        assert_eq!(h.len(), 64);
+        assert!(is_lowercase_hex(&h));
+    }
+
+    #[test]
+    fn hash_passkey_for_server_is_deterministic() {
+        assert_eq!(
+            hash_passkey_for_server("same"),
+            hash_passkey_for_server("same")
+        );
+    }
+
+    // ---- generate_solana_keypair ------------------------------------------
+
+    #[test]
+    fn solana_keypair_has_correct_sizes() {
+        let kp = generate_solana_keypair();
+        // secret_key_hex = 64 bytes = 128 hex chars
+        assert_eq!(kp.secret_key_hex.len(), 128);
+        assert!(is_lowercase_hex(&kp.secret_key_hex));
+        // public_key is base58 of 32 bytes
+        let pub_bytes = bs58::decode(&kp.public_key).into_vec().expect("base58");
+        assert_eq!(pub_bytes.len(), 32);
+    }
+
+    #[test]
+    fn solana_secret_last_32_bytes_match_public_key() {
+        let kp = generate_solana_keypair();
+        let secret_bytes = hex::decode(&kp.secret_key_hex).unwrap();
+        let pub_from_secret = &secret_bytes[32..];
+        let pub_decoded = bs58::decode(&kp.public_key).into_vec().unwrap();
+        assert_eq!(pub_from_secret, pub_decoded.as_slice());
+    }
+
+    #[test]
+    fn solana_keypair_is_unique_per_call() {
+        let a = generate_solana_keypair();
+        let b = generate_solana_keypair();
+        assert_ne!(a.public_key, b.public_key);
+        assert_ne!(a.secret_key_hex, b.secret_key_hex);
+    }
+
+    #[test]
+    fn solana_keypair_signs_and_verifies() {
+        let kp = generate_solana_keypair();
+        let secret_bytes = hex::decode(&kp.secret_key_hex).unwrap();
+        let seed: [u8; 32] = secret_bytes[..32].try_into().unwrap();
+        let signing = SigningKey::from_bytes(&seed);
+        let verifying = signing.verifying_key();
+
+        // Verifying key derived from seed must match the announced public key
+        let pub_decoded = bs58::decode(&kp.public_key).into_vec().unwrap();
+        assert_eq!(verifying.to_bytes().as_slice(), pub_decoded.as_slice());
+
+        let msg = b"hello ttc";
+        let sig = signing.sign(msg);
+        verifying.verify(msg, &sig).expect("signature must verify");
+    }
+
+    // ---- generate_evm_wallet ----------------------------------------------
+
+    #[test]
+    fn evm_wallet_has_correct_format() {
+        let w = generate_evm_wallet();
+        assert!(w.address.starts_with("0x"));
+        assert_eq!(w.address.len(), 42); // "0x" + 40 hex
+        assert!(is_lowercase_hex(&w.address[2..]));
+
+        assert!(w.private_key.starts_with("0x"));
+        assert_eq!(w.private_key.len(), 66); // "0x" + 64 hex
+        assert!(is_lowercase_hex(&w.private_key[2..]));
+    }
+
+    #[test]
+    fn evm_wallet_is_unique_per_call() {
+        let a = generate_evm_wallet();
+        let b = generate_evm_wallet();
+        assert_ne!(a.address, b.address);
+        assert_ne!(a.private_key, b.private_key);
+    }
+
+    #[test]
+    fn evm_address_is_derivable_from_private_key() {
+        let w = generate_evm_wallet();
+        let pk_bytes = hex::decode(&w.private_key[2..]).unwrap();
+        let secret = EcSecretKey::from_slice(&pk_bytes).unwrap();
+        let pubkey = secret.public_key();
+        let point = pubkey.to_encoded_point(false);
+        let pub_bytes = &point.as_bytes()[1..];
+        let hash = Keccak256::digest(pub_bytes);
+        let expected = format!("0x{}", hex::encode(&hash[12..]));
+        assert_eq!(w.address, expected);
+    }
+
+    // ---- crypto_es_encrypt -------------------------------------------------
+
+    #[test]
+    fn crypto_es_encrypt_emits_salted_prefix() {
+        let ct = crypto_es_encrypt("payload", "any-key");
+        let raw = BASE64.decode(&ct).expect("valid base64");
+        assert!(raw.len() >= 16, "too short: {}", raw.len());
+        assert_eq!(&raw[..8], b"Salted__");
+        // body must be a positive multiple of 16 (AES block size, PKCS7-padded)
+        let body_len = raw.len() - 16;
+        assert!(body_len > 0 && body_len.is_multiple_of(16));
+    }
+
+    #[test]
+    fn crypto_es_encrypt_uses_random_salt() {
+        let a = crypto_es_encrypt("same plaintext", "same-key");
+        let b = crypto_es_encrypt("same plaintext", "same-key");
+        assert_ne!(a, b, "salt should be random");
+    }
+
+    #[test]
+    fn crypto_es_encrypt_round_trips() {
+        let plaintext = "private-key-payload-12345";
+        let key = "derived-api-key";
+        let ct = crypto_es_encrypt(plaintext, key);
+        let recovered = decrypt_crypto_es(&ct, key).expect("decrypt");
+        assert_eq!(recovered, plaintext);
+    }
+
+    #[test]
+    fn crypto_es_encrypt_round_trips_long_payload() {
+        // Cross block boundaries to confirm PKCS7 padding round-trips.
+        let plaintext: String = "a".repeat(100);
+        let ct = crypto_es_encrypt(&plaintext, "k");
+        let recovered = decrypt_crypto_es(&ct, "k").expect("decrypt");
+        assert_eq!(recovered, plaintext);
+    }
+
+    #[test]
+    fn crypto_es_encrypt_round_trips_empty_payload() {
+        let ct = crypto_es_encrypt("", "k");
+        let recovered = decrypt_crypto_es(&ct, "k").expect("decrypt empty");
+        assert_eq!(recovered, "");
+    }
+
+    #[test]
+    fn crypto_es_encrypt_wrong_key_does_not_recover_plaintext() {
+        let plaintext = "secret";
+        let ct = crypto_es_encrypt(plaintext, "right-key");
+        // PKCS7 unpadding usually rejects a wrong key, but on the rare chance
+        // it produces valid-looking padding, the bytes still won't equal the
+        // original plaintext. Both outcomes are acceptable; what's NOT
+        // acceptable is silently recovering the original.
+        match decrypt_crypto_es(&ct, "wrong-key") {
+            None => {}
+            Some(s) => assert_ne!(s, plaintext, "wrong key must not recover plaintext"),
+        }
+    }
+}

@@ -122,7 +122,9 @@ See `.env.sample` for all supported variables. Key ones:
 - `TTC_PASSKEY` — 64-char hex, encrypts wallet keys locally
 - Per-exchange slots: `ORDERLY_API_KEY`, `BYBIT_API_KEY`, etc.
 
-Never commit `.env`, `config.toml`, or any file with real credentials.
+**Never put API keys in `config.toml`.** Exchange credentials (`{EXCHANGE}_API_KEY`, `{EXCHANGE}_API_SECRET`, `{EXCHANGE}_API_PASSPHRASE`) and TTC Box session tokens (`TTC_AUTH_TOKEN`, `TTC_PASSKEY`) belong in `.env` only. `config.toml` is for non-secret preferences (default exchange, output format, watchlist, portfolio thresholds, market-maker tunables) — never secrets.
+
+Never commit `.env` or any file with real credentials.
 
 ## Rebuild rule — every source change
 
