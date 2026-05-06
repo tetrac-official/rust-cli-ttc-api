@@ -509,9 +509,8 @@ pub struct CancelAllResult {
 // Market Data Models (TTC Box direct endpoints)
 // ============================================================================
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
 pub struct HybridTicker {
     pub symbol: String,
     #[serde(default)]
@@ -539,20 +538,19 @@ pub struct HybridTicker {
     pub sources: Vec<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct HybridTickerList {
     pub data: Vec<HybridTicker>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct HybridTickersData {
     pub spot: HybridTickerList,
     pub futures: HybridTickerList,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
 pub struct FundingRate {
     pub exchange: String,
     pub symbol: String,
@@ -565,9 +563,8 @@ pub struct FundingRate {
     pub open_interest: Option<f64>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
 pub struct OpenInterestItem {
     pub symbol: String,
     #[serde(deserialize_with = "deserialize_f64_or_string")]
@@ -581,9 +578,8 @@ pub struct OpenInterestItem {
     pub timestamp: i64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
 pub struct VolumeSnapshotExchange {
     pub exchange: String,
     pub display_name: String,
@@ -595,9 +591,8 @@ pub struct VolumeSnapshotExchange {
     pub markets: Vec<VolumeSnapshotMarket>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
 pub struct VolumeSnapshotMarket {
     pub symbol: String,
     pub volume_24h: f64,
@@ -612,7 +607,7 @@ pub struct VolumeSnapshotMarket {
 // TTC Scanner
 // ============================================================================
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ScannerResult {
     pub symbol: String,
     pub signal: ScanSignal,
@@ -620,14 +615,14 @@ pub struct ScannerResult {
     pub scans: Vec<ScanItem>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanItem {
     pub price_time_ratio: f64,
     pub momentum: ScanMomentum,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanMomentum {
     pub rise_per_bar: f64,
@@ -635,7 +630,7 @@ pub struct ScanMomentum {
     pub trend_direction: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanSignal {
     pub direction: String,
