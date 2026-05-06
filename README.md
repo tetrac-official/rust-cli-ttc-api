@@ -7,7 +7,7 @@ Place orders, manage positions, scan markets, and control risk. Designed for AI 
 > **First time here?** See [`.claude/skills/skill-onboarding/SKILL.md`](./.claude/skills/skill-onboarding/SKILL.md) — it walks an agent through the full setup from install to first trade.
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
-[![License](https://img.shields.io/badge/license-Proprietary-blue.svg)]()
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE.txt)
 [![Version](https://img.shields.io/badge/version-0.1.5-green.svg)]()
 
 ---
@@ -757,7 +757,7 @@ Headers required for all requests:
 
 ## License
 
-Proprietary — TTC Box
+Apache License 2.0 — see [LICENSE.txt](LICENSE.txt). © TTC Box
 
 ## Author
 
