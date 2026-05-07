@@ -198,7 +198,7 @@ pub async fn execute(args: TwapArgs, settings: &AppConfig) -> Result<()> {
         if let Some(lev) = args.leverage {
             let lev_params = SetLeverageParams {
                 symbol: args.symbol.clone(),
-                leverage: lev,
+                leverage: lev as i32,
             };
             match client
                 .set_leverage(&args.exchange, lev_params, credentials.clone())

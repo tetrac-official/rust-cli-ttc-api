@@ -91,7 +91,7 @@ async fn set_leverage(
 
     let params = SetLeverageParams {
         symbol: args.symbol.clone(),
-        leverage: args.leverage,
+        leverage: args.leverage as i32,
     };
 
     let result = client
@@ -100,11 +100,13 @@ async fn set_leverage(
 
     printer.success(&format!(
         "Leverage set to {}x for {} on {}",
-        result.leverage, result.symbol, args.exchange
+        result.leverage.abs(),
+        result.symbol,
+        args.exchange
     ));
 
     if let Some(max) = result.max_leverage {
-        printer.info(&format!("Maximum leverage allowed: {}x", max));
+        printer.info(&format!("Maximum leverage allowed: {}x", max.abs()));
     }
 
     Ok(())

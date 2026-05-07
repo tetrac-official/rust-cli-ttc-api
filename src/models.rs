@@ -298,7 +298,7 @@ pub struct CancelOrderParams {
 #[derive(Debug, Serialize)]
 pub struct SetLeverageParams {
     pub symbol: String,
-    pub leverage: u32,
+    pub leverage: i32,
 }
 
 #[derive(Debug, Serialize)]
@@ -414,7 +414,7 @@ pub struct Position {
     pub mark_price: f64,
     #[serde(default, deserialize_with = "deserialize_opt_f64_or_string")]
     pub pnl: Option<f64>,
-    pub leverage: u32,
+    pub leverage: i32,
     #[serde(default, deserialize_with = "deserialize_opt_f64_or_string")]
     pub liquidation_price: Option<f64>,
     #[serde(default)]
@@ -482,9 +482,9 @@ pub struct BestBidAsk {
 #[serde(rename_all = "camelCase")]
 pub struct LeverageResult {
     pub symbol: String,
-    pub leverage: u32,
+    pub leverage: i32,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_leverage: Option<u32>,
+    pub max_leverage: Option<i32>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
