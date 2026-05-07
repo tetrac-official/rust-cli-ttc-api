@@ -140,7 +140,7 @@ impl Tableable for Position {
             "POS".blue(),
             self.symbol.white(),
             self.position_side.to_uppercase().yellow(),
-            self.leverage,
+            self.leverage.abs(),
             self.entry_price,
             pnl_color
         );
@@ -167,7 +167,7 @@ impl Tableable for Position {
             self.entry_price,
             self.mark_price,
             self.effective_pnl(),
-            self.leverage,
+            self.leverage.abs(),
             self.liquidation_price.unwrap_or(0.0),
             self.margin_type.as_deref().unwrap_or(""),
             self.notional.unwrap_or(0.0)

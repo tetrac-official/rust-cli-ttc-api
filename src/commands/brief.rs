@@ -346,7 +346,7 @@ fn print_portfolio(
                 "  {:<14} {:>5}  {:>2}x   {:>9}   {:<22}  {}",
                 pos.symbol,
                 pos.side.to_uppercase(),
-                pos.leverage,
+                pos.leverage.abs(),
                 format!("${:.0}", notional),
                 pnl_colored,
                 liq_s,

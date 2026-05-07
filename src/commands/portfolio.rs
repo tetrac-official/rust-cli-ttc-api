@@ -176,8 +176,8 @@ pub async fn execute(
                     } else {
                         0.0
                     };
-                    let margin_used = if pos.leverage > 0 {
-                        notional / pos.leverage as f64
+                    let margin_used = if pos.leverage != 0 {
+                        notional / pos.leverage.abs() as f64
                     } else {
                         notional
                     };
@@ -216,7 +216,7 @@ pub async fn execute(
                         "  {}  {} {}x",
                         pos.symbol.bold(),
                         pos.side.to_uppercase(),
-                        pos.leverage
+                        pos.leverage.abs()
                     );
                     println!("    Size:     {}    Notional: {}", pos.size, notional_str);
                     println!(

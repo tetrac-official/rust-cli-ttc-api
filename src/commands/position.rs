@@ -67,8 +67,8 @@ async fn pnl_breakdown(args: PositionGetArgs, settings: &AppConfig) -> Result<()
             0.0
         };
 
-        let margin_used = if pos.leverage > 0 {
-            notional / pos.leverage as f64
+        let margin_used = if pos.leverage != 0 {
+            notional / pos.leverage.abs() as f64
         } else {
             notional
         };
@@ -80,7 +80,7 @@ async fn pnl_breakdown(args: PositionGetArgs, settings: &AppConfig) -> Result<()
             "  ── {} {} {}x ─────────────────────────────────",
             pos.symbol,
             pos.side.to_uppercase(),
-            pos.leverage
+            pos.leverage.abs()
         );
         println!(
             "  Size:          {} units  (${:.2} notional)",
@@ -97,7 +97,9 @@ async fn pnl_breakdown(args: PositionGetArgs, settings: &AppConfig) -> Result<()
         );
         println!(
             "  Margin used:   ${:.2}  ({}x leverage, {} mode)",
-            margin_used, pos.leverage, margin_mode
+            margin_used,
+            pos.leverage.abs(),
+            margin_mode
         );
         if let Some(lp) = pos.liquidation_price {
             println!(
