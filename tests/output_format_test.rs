@@ -1,4 +1,4 @@
-//! Output formatter tests — drive the binary against a mocked TTC Box and
+//! Output formatter tests — drive the binary against a mocked Tetrac and
 //! assert stdout shape across `--output-format` values.
 //!
 //! `Tableable::print_*` writes via `println!`, which can't be captured

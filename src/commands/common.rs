@@ -61,6 +61,7 @@ pub fn parse_position_side(s: &str) -> PositionSide {
     match s.to_lowercase().as_str() {
         "long" => PositionSide::Long,
         "short" => PositionSide::Short,
+        "merged" => PositionSide::Merged,
         _ => PositionSide::Both,
     }
 }

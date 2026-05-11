@@ -31,18 +31,18 @@ pub enum Commands {
     #[command(alias = "version")]
     Info,
 
-    /// Check TTC Box connectivity and session validity before starting a loop
+    /// Check Tetrac connectivity and session validity before starting a loop
     Status,
 
     /// Morning market brief: session + watchlist prices + signals + portfolio + orders
     #[command(alias = "morning", alias = "mb")]
     Brief(BriefArgs),
 
-    /// Login to TTC Box with email and passkey
+    /// Login to Tetrac with email and passkey
     #[command(alias = "auth")]
     Login(LoginArgs),
 
-    /// Register a new TTC Box account with email and passkey
+    /// Register a new Tetrac account with email and passkey
     Register(RegisterArgs),
 
     /// Time-Weighted Average Price position builder

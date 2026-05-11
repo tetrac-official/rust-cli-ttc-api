@@ -55,7 +55,7 @@ If the user already has a TTC account, they will also have `TTC_AUTH_TOKEN` and 
 
 ---
 
-## Step 3 — Authenticate with TTC Box
+## Step 3 — Authenticate with Tetrac
 
 Two paths depending on whether the user has an account:
 
@@ -65,7 +65,7 @@ Two paths depending on whether the user has an account:
 skill-trading register
 ```
 
-This creates a TTC Box account, generates a local wallet (Ed25519 keypair encrypted with `TTC_PASSKEY`), and writes `TTC_AUTH_TOKEN`, `TTC_PUBLIC_KEY`, and `TTC_TOKEN_ISSUED_AT` to `.env`.
+This creates a Tetrac account, generates a local wallet (Ed25519 keypair encrypted with `TTC_PASSKEY`), and writes `TTC_AUTH_TOKEN`, `TTC_PUBLIC_KEY`, and `TTC_TOKEN_ISSUED_AT` to `.env`.
 
 ### Existing user — login
 
@@ -104,7 +104,7 @@ Which exchanges need a passphrase and what to put there is documented in `skill-
 
 Required for **email-registered** CLI users only. Web3 wallet users do not need this.
 
-When you registered via email, TTC Box generated a random keypair for `TTC_PUBLIC_KEY`. But Orderly needs your real trading wallet address to locate your funds. Without this, balance will show `0.0000`.
+When you registered via email, Tetrac generated a random keypair for `TTC_PUBLIC_KEY`. But Orderly needs your real trading wallet address to locate your funds. Without this, balance will show `0.0000`.
 
 ```env
 ORDERLY_MAIN_WALLET_ADDRESS=<base58 Solana address, ~44 chars>
@@ -118,7 +118,7 @@ This is your web3 MAIN wallet address thats signs transaction such as deposit an
 
 Run these three checks in order. Each confirms a different layer.
 
-### 5a — TTC Box connectivity (no exchange credentials needed)
+### 5a — Tetrac connectivity (no exchange credentials needed)
 
 ```bash
 skill-trading market hybrid-tickers --symbol BTCUSDT --market-type futures
@@ -154,7 +154,7 @@ skill-trading status
 
 **Expected output for a ready setup:**
 ```
-TTC Box API          REACHABLE
+Tetrac API          REACHABLE
 Session token        VALID (Xh remaining)
 Exchange credentials orderly configured
 Status:              READY

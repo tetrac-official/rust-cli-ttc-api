@@ -1,4 +1,4 @@
-//! Login command — authenticate with TTC Box via email + passkey.
+//! Login command — authenticate with Tetrac via email + passkey.
 //!
 //! Reads TTC_EMAIL and TTC_PASSKEY from .env automatically — no prompts needed
 //! if both are set. Updates TTC_AUTH_TOKEN, TTC_PUBLIC_KEY, and

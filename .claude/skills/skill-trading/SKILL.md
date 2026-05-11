@@ -1,6 +1,6 @@
 ---
 name: skill-trading
-description: Execute trading operations on TTC Box across 15+ exchanges. Use when the user wants to place orders, cancel orders, check balances, view positions, set leverage, or fetch market data (tickers, funding rates, open interest, scanner signals).
+description: Execute trading operations on Tetrac across 15+ exchanges. Use when the user wants to place orders, cancel orders, check balances, view positions, set leverage, or fetch market data (tickers, funding rates, open interest, scanner signals).
 ---
 
 # skill-trading — Order Management Skill
@@ -12,7 +12,7 @@ It exists to prevent hallucination and unsafe order execution.
 
 Load these on demand when deeper context is needed:
 
-- `references/api-reference.md` — full TTC Box REST API: all methods, param shapes, response formats, supported exchanges, quirks
+- `references/api-reference.md` — full Tetrac REST API: all methods, param shapes, response formats, supported exchanges, quirks
 - `references/exchanges.md` — exchange names, credential setup, `ORDERLY_MAIN_WALLET_ADDRESS` guide
 - `references/troubleshooting.md` — every error message with cause and fix
 
@@ -208,7 +208,7 @@ Because step 1 runs before any order is placed, `twap --leverage` only succeeds 
 
 ### Verifying the current leverage
 
-The leverage in effect for a symbol shows up in the `position pnl` output (`── NEARUSDT BUY 10x ──`). When flat, query the exchange via the TTC Box API (`getPositions` returns leverage even for size=0 on most exchanges), or simply set it explicitly before your next order.
+The leverage in effect for a symbol shows up in the `position pnl` output (`── NEARUSDT BUY 10x ──`). When flat, query the exchange via the Tetrac API (`getPositions` returns leverage even for size=0 on most exchanges), or simply set it explicitly before your next order.
 
 ### Per-exchange notes
 
@@ -527,7 +527,7 @@ Output:
   SKILL-TRADING STATUS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  ✓  TTC Box API
+  ✓  Tetrac API
   ✓  Session token               VALID  23h 43m remaining
   ✓  Exchange credentials        orderly configured
 
@@ -576,7 +576,7 @@ Read operations are idempotent — re-running them is safe. Write operations mut
 - `Invalid order parameters: ...` — local validation rejected the args
 - `Missing credentials for exchange: ...` — never sent
 - `Configuration error: ...` — never sent
-- `API error [400]: ...tick size...` / `...lot size...` / `...insufficient balance...` — TTC Box rejected before forwarding
+- `API error [400]: ...tick size...` / `...lot size...` / `...insufficient balance...` — Tetrac rejected before forwarding
 - `API error [401]: Unauthorized` — session expired; never reached the exchange (run `login`, then retry)
 - `API error [403]: Forbidden` — bad method; never reached the exchange
 - `Position not found: <symbol>` — read-side miss; nothing was mutated
@@ -585,7 +585,7 @@ For these: fix the cause (see [references/troubleshooting.md](references/trouble
 
 **In-flight failure** — the request MAY have reached the exchange. Outcome is uncertain. Signatures:
 
-- `API error [500]: ...` (TTC Box catch-all — could mean upstream filled then storage threw)
+- `API error [500]: ...` (Tetrac catch-all — could mean upstream filled then storage threw)
 - `API request failed: ...` (transport error after retries were exhausted)
 - `Rate limited - retry after N seconds` (CLI already auto-retried — if you see this, the retry budget is spent)
 - Any error following a write op where the cause is unclear

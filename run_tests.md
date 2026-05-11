@@ -32,7 +32,7 @@ Medium-value
    Tests sandbox $HOME to a per-test temp dir. A single shared lock (`TEST_HOME_LOCK` in src/commands/common.rs) serializes both modules so they don't clobber each other's HOME. Lock acquisition uses `unwrap_or_else(|p| p.into_inner())` to recover from poisoning so a panicking test doesn't cascade.
 
    **Skipped:** "Concurrent writers don't corrupt the file (atomic rename pattern)" — current `save_state` / `save_trail_watch_progress` use plain `fs::write`, which is NOT atomic. But the design has a single writer per symbol+exchange (TWAP loop owns its file; trail-watch loop owns its file), and concurrent runs against the same symbol+exchange are an error condition the user wouldn't intentionally create. Atomicity isn't a feature here; non-atomic write matches the use case. If we ever support multi-writer scenarios, the fix is `write to tmp + rename` and the test is `spawn 50 threads, all write, file is always parseable`.
-7. [x] Output formatters (src/output/printer.rs) — 3 inline tests in src/output/mod.rs (Default = Table, Display matches the lowercase tokens clap accepts, Copy + Eq semantics) + 9 subprocess tests in tests/output_format_test.rs driving `account balance --output-format X` against a mocked TTC Box: JSON output contains a parseable JSON array; CSV starts with header line and data row column count matches header; Quiet emits the minimal `<asset>:<balance>` and not table/CSV/JSON markers; Table uses the BAL marker; empty list prints "No results found" except in Quiet; TTC_OUTPUT env selects format; CLI flag overrides TTC_OUTPUT.
+7. [x] Output formatters (src/output/printer.rs) — 3 inline tests in src/output/mod.rs (Default = Table, Display matches the lowercase tokens clap accepts, Copy + Eq semantics) + 9 subprocess tests in tests/output_format_test.rs driving `account balance --output-format X` against a mocked Tetrac: JSON output contains a parseable JSON array; CSV starts with header line and data row column count matches header; Quiet emits the minimal `<asset>:<balance>` and not table/CSV/JSON markers; Table uses the BAL marker; empty list prints "No results found" except in Quiet; TTC_OUTPUT env selects format; CLI flag overrides TTC_OUTPUT.
 
    Subprocess tests serialize via an internal Mutex (SERIAL) — without it, 9 parallel mockito + subprocess tests occasionally race on port allocation / process slot exhaustion. With the lock, 5/5 isolated runs pass and 0 flakes in full-suite runs.
 
@@ -46,7 +46,7 @@ Medium-value
 
    **Behavioral findings (no fix needed):**
    - `check_session` treats malformed `TTC_TOKEN_ISSUED_AT` as VALID (with "issued-at unknown" hint). This is conservative — better to keep the user moving than lock them out on a parse error.
-   - `check_session` exit `>= 24h` is expired (strict). The 24h boundary is the same as the server's TTC Box token TTL.
+   - `check_session` exit `>= 24h` is expired (strict). The 24h boundary is the same as the server's Tetrac token TTL.
 9. [x] Quantity/decimals math — extracted three pure helpers and added 19 unit tests covering the money-math kernels.
 
    **`floor_quantity` (src/commands/twap_slice.rs)** — 8 tests covering decimals=0 truncation, finer precision preserves more notional, high-price/low-amount edge cases, None on zero/negative/NaN/inf inputs, and a property-style sweep across realistic amount/price/decimals combinations confirming the floor invariant (qty × price ≤ amount, never overspend).

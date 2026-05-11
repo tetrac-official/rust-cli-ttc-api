@@ -1,4 +1,4 @@
-//! Status command — ping TTC Box and verify session validity before starting any loop.
+//! Status command — ping Tetrac and verify session validity before starting any loop.
 //!
 //! Checks:
 //!   1. API reachability — raw HTTP GET to a public market endpoint (no auth required)
@@ -12,7 +12,7 @@ use crate::error::Result;
 use colored::Colorize;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-const TOKEN_EXPIRY_SECS: u64 = 24 * 3600; // TTC Box sessions expire in 24h
+const TOKEN_EXPIRY_SECS: u64 = 24 * 3600; // Tetrac sessions expire in 24h
 
 pub async fn execute(settings: &AppConfig) -> Result<()> {
     println!();
@@ -27,7 +27,7 @@ pub async fn execute(settings: &AppConfig) -> Result<()> {
     let base = settings.api.base_url.trim_end_matches('/');
     let ping_url = format!("{}/markets/funding-rates", base);
     let api_ok = check_api_reachability(&ping_url, settings.api.timeout).await;
-    print_check("TTC Box API", api_ok, None);
+    print_check("Tetrac API", api_ok, None);
     if !api_ok {
         all_ok = false;
     }

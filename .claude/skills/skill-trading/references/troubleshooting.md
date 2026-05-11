@@ -83,7 +83,7 @@ If age > 86400, run `skill-trading login` before doing anything else.
 
 ## Error: `API error [403]: Forbidden`
 
-**Cause:** The method name sent to TTC Box is incorrect. This is a known quirk — `getOpenOrders` returns 403. The correct method name is `getOrders`.
+**Cause:** The method name sent to Tetrac is incorrect. This is a known quirk — `getOpenOrders` returns 403. The correct method name is `getOrders`.
 
 This error should not appear in normal use since the CLI uses the correct method names. If you see it, something in the request body was malformed.
 
@@ -103,7 +103,7 @@ This error should not appear in normal use since the CLI uses the correct method
 
 **Cause:** Your `ORDERLY_MAIN_WALLET_ADDRESS` is missing or incorrect. This is the most common issue for email-registered CLI users.
 
-When you registered via email (using `skill-trading register`), TTC Box assigned a random keypair to your account. But Orderly needs to know your *actual* trading wallet address to look up your funds. Without this env var, the server looks at the wrong wallet.
+When you registered via email (using `skill-trading register`), Tetrac assigned a random keypair to your account. But Orderly needs to know your *actual* trading wallet address to look up your funds. Without this env var, the server looks at the wrong wallet.
 
 **Fix:**
 1. Find your Orderly trading wallet address (the public key of the wallet where your Orderly funds are held — a base58 Solana address, about 44 characters)
@@ -113,7 +113,7 @@ When you registered via email (using `skill-trading register`), TTC Box assigned
    ```
 3. Run `skill-trading account balance` again
 
-**Web3 users are not affected.** If you registered via the TTC Box web interface with a wallet, your `TTC_PUBLIC_KEY` is already your Orderly wallet.
+**Web3 users are not affected.** If you registered via the Tetrac web interface with a wallet, your `TTC_PUBLIC_KEY` is already your Orderly wallet.
 
 ---
 
@@ -187,7 +187,7 @@ export PATH="$PATH:/usr/local/bin"
 
 ## Market data commands work but exchange commands fail
 
-**Cause:** Market data commands (`hybrid-tickers`, `funding-rates`, `open-interest`, `volume-snapshot`, `scanner`) do not require exchange credentials — they hit TTC Box aggregation endpoints directly. Exchange-specific commands (`account balance`, `order limit`, etc.) require both a valid TTC session AND exchange API credentials.
+**Cause:** Market data commands (`hybrid-tickers`, `funding-rates`, `open-interest`, `volume-snapshot`, `scanner`) do not require exchange credentials — they hit Tetrac aggregation endpoints directly. Exchange-specific commands (`account balance`, `order limit`, etc.) require both a valid TTC session AND exchange API credentials.
 
 **Fix:** Verify that:
 1. `TTC_AUTH_TOKEN` is valid (run `skill-trading login` if unsure)

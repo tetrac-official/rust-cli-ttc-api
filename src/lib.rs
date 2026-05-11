@@ -1,6 +1,6 @@
-//! TTC Box Trading CLI
+//! Tetrac Trading CLI
 //!
-//! Execute trading operations on TTC Box across 15+ exchanges.
+//! Execute trading operations on Tetrac across 15+ exchanges.
 //! Place orders, manage positions, set leverage, and control risk.
 
 pub mod api;

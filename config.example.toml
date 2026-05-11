@@ -10,7 +10,7 @@
 # API Settings
 # ============================================================================
 [api]
-# TTC Box API base URL
+# Tetrac API base URL
 base_url = "https://ttc.box/api/v1"
 
 # Request timeout in seconds
