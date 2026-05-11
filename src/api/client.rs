@@ -8,6 +8,19 @@ use tracing::{debug, info, instrument};
 
 const USER_AGENT: &str = concat!("skill-trading/", env!("CARGO_PKG_VERSION"), " (Rust)",);
 
+/// Parse a positionSide string returned by the API into the enum.
+/// Returns None for unknown values so close_position can fall back to a
+/// position_side-less market order rather than guessing wrong.
+fn pos_side_from_str(s: &str) -> Option<PositionSide> {
+    match s.to_lowercase().as_str() {
+        "long" => Some(PositionSide::Long),
+        "short" => Some(PositionSide::Short),
+        "merged" => Some(PositionSide::Merged),
+        "both" => Some(PositionSide::Both),
+        _ => None,
+    }
+}
+
 #[derive(Clone)]
 pub struct Client {
     inner: reqwest::Client,
@@ -91,7 +104,7 @@ impl Client {
                     }
                     Err(e) => return Err(e),
                 },
-                Err(e) if attempt <= max_retries => {
+                Err(_e) if attempt <= max_retries => {
                     let delay =
                         Duration::from_millis(self.api_config.retry_delay_ms * attempt as u64);
                     tokio::time::sleep(delay).await;
@@ -289,6 +302,11 @@ impl Client {
         Ok(response.data)
     }
 
+    /// Close an open position by placing a reduce-only market order in the
+    /// opposite direction. ttc.box does not expose a `closePosition` dispatcher
+    /// method (verified May 2026 — only `closeAllPositions` exists), so we
+    /// replicate what `closeAllPositions` does server-side: fetch the position,
+    /// reverse its side, place a reduce-only market order.
     #[instrument(skip(self, params, credentials))]
     pub async fn close_position(
         &self,
@@ -296,16 +314,58 @@ impl Client {
         params: ClosePositionParams,
         credentials: ExchangeCredentials,
     ) -> Result<Order> {
-        let request = ExchangeRequest {
-            exchange_name: exchange.to_string(),
-            method: "closePosition".to_string(),
-            params,
-            credentials,
+        info!("Closing position {} on {}", params.symbol, exchange);
+
+        let positions = self
+            .get_positions(exchange, Some(&params.symbol), credentials.clone())
+            .await?;
+
+        let pos = positions
+            .into_iter()
+            .filter(|p| p.size != 0.0 && p.symbol.eq_ignore_ascii_case(&params.symbol))
+            .find(|p| match params.position_side {
+                Some(requested) => pos_side_from_str(&p.position_side) == Some(requested),
+                None => true,
+            })
+            .ok_or_else(|| {
+                TtcError::Api {
+                    code: 404,
+                    message: format!(
+                        "No open position for {} on {} matching position_side {:?}",
+                        params.symbol, exchange, params.position_side
+                    ),
+                }
+            })?;
+
+        let close_side = match pos.side.to_lowercase().as_str() {
+            "buy" => OrderSide::Sell,
+            "sell" => OrderSide::Buy,
+            other => {
+                return Err(TtcError::Api {
+                    code: 500,
+                    message: format!("Unexpected position side from exchange: {}", other),
+                });
+            }
         };
 
-        info!("Closing position on {}", exchange);
-        let response = self.post("/exchanges", &request).await?;
-        Ok(response.data)
+        let quantity = params.quantity.unwrap_or_else(|| pos.size.abs());
+
+        let market_params = MarketOrderParams {
+            symbol: pos.symbol.clone(),
+            side: close_side,
+            quantity,
+            // Preserve the position's own positionSide (long/short/merged) so
+            // phemex's `placeMarketOrder` hits the matching posSide branch
+            // without relying on the server's INCONSISTENT_POS_MODE retry path.
+            position_side: params
+                .position_side
+                .or_else(|| pos_side_from_str(&pos.position_side)),
+            reduce_only: Some(true),
+            client_order_id: None,
+        };
+
+        self.place_market_order(exchange, market_params, credentials)
+            .await
     }
 
     // ========================================================================
@@ -474,7 +534,7 @@ impl Client {
     }
 
     // ========================================================================
-    // Market Data Methods (TTC Box direct endpoints)
+    // Market Data Methods (Tetrac direct endpoints)
     // ========================================================================
 
     #[instrument(skip(self))]

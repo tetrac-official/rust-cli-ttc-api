@@ -24,3 +24,7 @@ Thumbs.db
 
 # Config (user-specific)
 /config.local.toml
+
+# Local demo recordings (hosted via GitHub user-attachments CDN, not the repo)
+demo_*.mov
+demo_*.mp4

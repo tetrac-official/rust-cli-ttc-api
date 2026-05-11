@@ -83,8 +83,8 @@ fn closing_side(pos_side: PositionSide) -> Result<OrderSide> {
     match pos_side {
         PositionSide::Long => Ok(OrderSide::Sell),
         PositionSide::Short => Ok(OrderSide::Buy),
-        PositionSide::Both => Err(TtcError::InvalidPosition(
-            "Must specify position side for hedge mode".into(),
+        PositionSide::Both | PositionSide::Merged => Err(TtcError::InvalidPosition(
+            "Must specify position side for hedge/merged mode".into(),
         )),
     }
 }
@@ -259,7 +259,7 @@ async fn set_trailing_stop(
     let initial_stop = match pos_side {
         PositionSide::Long => mark_price - trail_distance,
         PositionSide::Short => mark_price + trail_distance,
-        PositionSide::Both => unreachable!(),
+        PositionSide::Both | PositionSide::Merged => unreachable!(),
     };
 
     info!(
@@ -386,7 +386,7 @@ async fn trail_watch(
                 if active {
                     let p = peak.get_or_insert(mark);
                     match pos_side {
-                        PositionSide::Long | PositionSide::Both => {
+                        PositionSide::Long | PositionSide::Both | PositionSide::Merged => {
                             if mark > *p {
                                 *p = mark;
                             }
@@ -400,7 +400,7 @@ async fn trail_watch(
                     let p = *p;
 
                     let new_stop = match pos_side {
-                        PositionSide::Long | PositionSide::Both => {
+                        PositionSide::Long | PositionSide::Both | PositionSide::Merged => {
                             p * (1.0 - args.trail_pct / 100.0)
                         }
                         PositionSide::Short => p * (1.0 + args.trail_pct / 100.0),
@@ -409,7 +409,7 @@ async fn trail_watch(
                     let should_update = match current_stop_price {
                         None => true,
                         Some(prev) => match pos_side {
-                            PositionSide::Long | PositionSide::Both => new_stop > prev,
+                            PositionSide::Long | PositionSide::Both | PositionSide::Merged => new_stop > prev,
                             PositionSide::Short => new_stop < prev,
                         },
                     };
@@ -422,7 +422,7 @@ async fn trail_watch(
 
                     if should_update {
                         let stop_side = match pos_side {
-                            PositionSide::Long | PositionSide::Both => OrderSide::Sell,
+                            PositionSide::Long | PositionSide::Both | PositionSide::Merged => OrderSide::Sell,
                             PositionSide::Short => OrderSide::Buy,
                         };
 

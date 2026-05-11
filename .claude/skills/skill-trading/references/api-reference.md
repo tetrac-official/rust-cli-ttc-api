@@ -1,4 +1,4 @@
-# TTC Box REST API
+# Tetrac REST API
 
 Base URL: `https://ttc.box`
 

@@ -1,6 +1,6 @@
 //! Wire-format tests for src/models.rs.
 //!
-//! These lock in the JSON shape the CLI sends to TTC Box and the shape it
+//! These lock in the JSON shape the CLI sends to Tetrac and the shape it
 //! expects back. They catch breakage when:
 //! - A struct field gets renamed or its serde rename changes.
 //! - An enum's case-mapping (lowercase / PascalCase) drifts.
@@ -106,7 +106,7 @@ fn margin_mode_serializes_lowercase() {
 // ============================================================================
 // Permissive numeric deserializers (string OR number)
 //
-// TTC Box aggregates from 15+ exchanges; some return numbers, some return
+// Tetrac aggregates from 15+ exchanges; some return numbers, some return
 // quoted strings. The deserialize_f64_or_string / deserialize_opt_f64_or_string
 // helpers accept either. If those helpers ever stop accepting one shape, every
 // position read from those exchanges starts failing.

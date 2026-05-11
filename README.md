@@ -1,6 +1,6 @@
 # Skill Trading CLI
 
-Execute trading operations on TTC Box across 15+ exchanges.
+Execute trading operations on Tetrac across 15+ exchanges.
 
 Place orders, manage positions, scan markets, and control risk. Designed for AI agents and automated trading workflows.
 
@@ -12,9 +12,15 @@ Place orders, manage positions, scan markets, and control risk. Designed for AI 
 
 ---
 
+## Demo
+
+https://github.com/user-attachments/assets/bf9b5b49-09c0-4e42-b0af-0fda677774be
+
+---
+
 ## Features
 
-- **Email Registration & Login** — Create and authenticate TTC Box accounts from the terminal
+- **Email Registration & Login** — Create and authenticate Tetrac accounts from the terminal
 - **Client-Side Wallet Generation** — Solana, Orderly, and EVM wallets generated and encrypted locally; private keys never sent in plaintext
 - **15+ Exchanges** — Orderly, Phemex, Bybit, Binance, OKX, Bitget, BloFin, KuCoin, Hyperliquid, AsterDEX, BingX, and more
 - **Full Order Management** — Limit, market, stop-loss, take-profit orders
@@ -70,12 +76,12 @@ cp config.example.toml config.toml
 cp .env.sample .env
 ```
 
-> ⚠️ **Never put API keys in `config.toml`.** All secrets — exchange credentials (`{EXCHANGE}_API_KEY`, `{EXCHANGE}_API_SECRET`, `{EXCHANGE}_API_PASSPHRASE`) and TTC Box session tokens (`TTC_AUTH_TOKEN`, `TTC_PASSKEY`) — belong in `.env` only. `config.toml` is for non-secret preferences (default exchange, output format, watchlist, portfolio thresholds, market-maker tunables).
+> ⚠️ **Never put API keys in `config.toml`.** All secrets — exchange credentials (`{EXCHANGE}_API_KEY`, `{EXCHANGE}_API_SECRET`, `{EXCHANGE}_API_PASSPHRASE`) and Tetrac session tokens (`TTC_AUTH_TOKEN`, `TTC_PASSKEY`) — belong in `.env` only. `config.toml` is for non-secret preferences (default exchange, output format, watchlist, portfolio thresholds, market-maker tunables).
 
 Then use a `.env` file in the working directory for all your exchange account api keys:
 
 ```env
-# TTC Box session (written automatically by `register` and `login`)
+# Tetrac session (written automatically by `register` and `login`)
 TTC_AUTH_TOKEN=your_ttc_auth_token
 TTC_PUBLIC_KEY=your_ttc_public_key
 TTC_EMAIL=your_ttc_email
@@ -112,9 +118,9 @@ skill-trading login
 
 ## Generated Wallets
 
-During `register`, four wallets are generated client-side (Solana, Orderly, EVM main, EVM signing). Private keys are encrypted with a key derived from your passkey and email, then sent to TTC Box — they are never stored unencrypted locally.
+During `register`, four wallets are generated client-side (Solana, Orderly, EVM main, EVM signing). Private keys are encrypted with a key derived from your passkey and email, then sent to Tetrac — they are never stored unencrypted locally.
 
-CLI trading operations use exchange API keys, not these wallets. The wallets are used by the TTC Box web interface for Web3 authentication.
+CLI trading operations use exchange API keys, not these wallets. The wallets are used by the Tetrac web interface for Web3 authentication.
 
 ---
 
@@ -197,7 +203,7 @@ skill-trading account hedge -e phemex --disable
 
 ### Market Data
 
-Market data commands hit TTC Box aggregation endpoints directly — no exchange credentials required.
+Market data commands hit Tetrac aggregation endpoints directly — no exchange credentials required.
 
 ```bash
 # Cross-exchange tickers (spot + futures with OI and funding)
@@ -484,7 +490,7 @@ skill-trading status
   SKILL-TRADING STATUS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  ✓  TTC Box API
+  ✓  Tetrac API
   ✓  Session token               VALID  23h 43m remaining
   ✓  Exchange credentials        orderly configured
 
@@ -494,7 +500,7 @@ skill-trading status
 ```
 
 Three checks run concurrently:
-1. **TTC Box API** — raw HTTP ping to a public market endpoint; verifies network reachability
+1. **Tetrac API** — raw HTTP ping to a public market endpoint; verifies network reachability
 2. **Session token** — confirms `TTC_AUTH_TOKEN` is set and `TTC_TOKEN_ISSUED_AT` is within the 24h window; shows exact time remaining
 3. **Exchange credentials** — scans env vars, config.toml, and per-exchange vars for at least one usable API key + secret pair
 
@@ -530,7 +536,7 @@ Commission and other tunables live under `[market-maker]` in `config.toml`.
 ### Authentication
 
 ```bash
-# Register a new TTC Box account
+# Register a new Tetrac account
 skill-trading register
 skill-trading register --email you@example.com
 
@@ -549,8 +555,8 @@ skill-trading info
 | Flag | Env Variable | Description |
 |------|-------------|-------------|
 | `--config <path>` | `TTC_CONFIG` | Path to config file |
-| `--api-key <key>` | `TTC_AUTH_TOKEN` | TTC Box auth token |
-| `--public-key <key>` | `TTC_PUBLIC_KEY` | TTC Box public key |
+| `--api-key <key>` | `TTC_AUTH_TOKEN` | Tetrac auth token |
+| `--public-key <key>` | `TTC_PUBLIC_KEY` | Tetrac public key |
 | `--exchange-api-key <key>` | `EXCHANGE_API_KEY` | Exchange API key |
 | `--exchange-api-secret <secret>` | `EXCHANGE_API_SECRET` | Exchange API secret |
 | `--exchange-api-passphrase <pp>` | `EXCHANGE_API_PASSPHRASE` | Exchange passphrase (Orderly, OKX, KuCoin, Bitget, BloFin) |
@@ -733,7 +739,7 @@ make help       # show all targets
 
 ## API Reference
 
-All exchange operations are proxied through TTC Box:
+All exchange operations are proxied through Tetrac:
 
 ```
 POST https://ttc.box/api/v1/exchanges
@@ -757,7 +763,7 @@ Headers required for all requests:
 
 ## License
 
-Apache License 2.0 — see [LICENSE.txt](LICENSE.txt). © TTC Box
+Apache License 2.0 — see [LICENSE.txt](LICENSE.txt). © Tetrac
 
 ## Author
 

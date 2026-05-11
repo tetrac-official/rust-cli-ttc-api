@@ -1,4 +1,4 @@
-//! Register command — create a new TTC Box account.
+//! Register command — create a new Tetrac account.
 //!
 //! Auto-generates a random passkey (SHA-256 strength, 64-char hex).
 //! Derives wallet keys, encrypts them client-side, POSTs to /api/auth/register.
@@ -12,7 +12,7 @@ use crate::crypto::{
     hash_passkey_for_server,
 };
 use crate::error::{Result, TtcError};
-use rand::RngCore;
+use rand_core::{OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -84,7 +84,7 @@ pub async fn execute(args: RegisterArgs, settings: &AppConfig) -> Result<()> {
         }
         _ => {
             let mut bytes = [0u8; 32];
-            rand::thread_rng().fill_bytes(&mut bytes);
+            OsRng.fill_bytes(&mut bytes);
             hex::encode(bytes)
         }
     };
@@ -184,7 +184,7 @@ pub async fn execute(args: RegisterArgs, settings: &AppConfig) -> Result<()> {
 /// Generate a random email in the format <base64url>@d<days>.box
 fn generate_email() -> String {
     let mut bytes = [0u8; 24];
-    rand::thread_rng().fill_bytes(&mut bytes);
+    OsRng.fill_bytes(&mut bytes);
     let random_part =
         base64::Engine::encode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, bytes);
     let days = std::time::SystemTime::now()

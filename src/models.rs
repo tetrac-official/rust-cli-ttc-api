@@ -131,6 +131,9 @@ pub enum PositionSide {
     Long,
     Short,
     Both,
+    // Phemex OneWay mode reports positions as `merged`; serialize round-trips
+    // so close-position market orders hit phemexUtils' `posSide=Merged` branch.
+    Merged,
 }
 
 impl std::fmt::Display for PositionSide {
@@ -139,6 +142,7 @@ impl std::fmt::Display for PositionSide {
             PositionSide::Long => write!(f, "long"),
             PositionSide::Short => write!(f, "short"),
             PositionSide::Both => write!(f, "both"),
+            PositionSide::Merged => write!(f, "merged"),
         }
     }
 }
@@ -506,7 +510,7 @@ pub struct CancelAllResult {
 }
 
 // ============================================================================
-// Market Data Models (TTC Box direct endpoints)
+// Market Data Models (Tetrac direct endpoints)
 // ============================================================================
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

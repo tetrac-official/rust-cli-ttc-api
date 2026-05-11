@@ -1,4 +1,4 @@
-//! skill-trading - Execute trading operations on TTC Box across 15+ exchanges
+//! skill-trading - Execute trading operations on Tetrac across 15+ exchanges
 //!
 //! Place orders, manage positions, set leverage, and control risk.
 
@@ -28,8 +28,8 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[command(
     name = "skill-trading",
     version = VERSION,
-    about = "Execute trading operations on TTC Box across 15+ exchanges",
-    long_about = "Execute trading operations on TTC Box across 15+ exchanges.\n\
+    about = "Execute trading operations on Tetrac across 15+ exchanges",
+    long_about = "Execute trading operations on Tetrac across 15+ exchanges.\n\
                   Place orders, manage positions, set leverage, and control risk.\n\n\
                   Designed for Claude Code and similar AI products.",
     propagate_version = true,
@@ -195,7 +195,7 @@ async fn main() -> Result<()> {
         cli::Commands::Market(cmd) => commands::market::execute(cmd, &settings, format).await,
         cli::Commands::Info => {
             println!("skill-trading v{}", VERSION);
-            println!("Execute trading operations on TTC Box across 15+ exchanges.");
+            println!("Execute trading operations on Tetrac across 15+ exchanges.");
             Ok(())
         }
         cli::Commands::Login(cmd) => commands::login::execute(cmd, &settings).await,

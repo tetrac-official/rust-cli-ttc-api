@@ -1,6 +1,6 @@
 # Supported Exchanges
 
-All exchanges are accessed via the TTC Box proxy at `https://ttc.box`. You never call exchange APIs directly.
+All exchanges are accessed via the Tetrac proxy at `https://ttc.box`. You never call exchange APIs directly.
 
 ## Exchange Names (use with `-e` flag)
 
@@ -29,7 +29,7 @@ All exchanges are accessed via the TTC Box proxy at `https://ttc.box`. You never
 - Tick sizes vary per symbol — always check `market best-bid-ask` before placing
 
 ### Market Data Commands (no `-e` required)
-These hit TTC Box aggregation endpoints directly:
+These hit Tetrac aggregation endpoints directly:
 - `market hybrid-tickers` — cross-exchange tickers, use `--source` to filter by exchange
 - `market funding-rates` — funding rates across all exchanges
 - `market open-interest` — open interest across all exchanges
@@ -41,7 +41,7 @@ These hit TTC Box aggregation endpoints directly:
 Credentials are loaded from `.env` in the working directory:
 
 ```env
-# TTC Box session (written automatically by `register` and `login`)
+# Tetrac session (written automatically by `register` and `login`)
 TTC_AUTH_TOKEN=your_ttc_auth_token
 TTC_PUBLIC_KEY=your_ttc_public_key
 TTC_EMAIL=your_ttc_email
@@ -60,7 +60,7 @@ ORDERLY_MAIN_WALLET_ADDRESS=your_orderly_wallet_public_key
 
 ### ORDERLY_MAIN_WALLET_ADDRESS
 
-This is required if you registered your TTC Box account via **email** (not Web3).
+This is required if you registered your Tetrac account via **email** (not Web3).
 
 - **Web3 users** — your `TTC_PUBLIC_KEY` IS your Orderly wallet, so this is not needed.
 - **Email/CLI users** — your `TTC_PUBLIC_KEY` is a random generated key. You must set `ORDERLY_MAIN_WALLET_ADDRESS` to your real Orderly trading wallet public key so the server can derive the correct account credentials.

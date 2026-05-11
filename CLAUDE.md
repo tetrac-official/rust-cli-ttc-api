@@ -25,7 +25,7 @@ skill-trading info
 
 ## Architecture
 
-The binary (`skill-trading`) is a multi-exchange trading CLI proxied entirely through the TTC Box API (`https://ttc.box/api/v1`). All exchange operations route through TTC Box — the CLI never calls exchange APIs directly.
+The binary (`skill-trading`) is a multi-exchange trading CLI proxied entirely through the Tetrac API (`https://ttc.box/api/v1`). All exchange operations route through Tetrac — the CLI never calls exchange APIs directly.
 
 
 ### Configuration Priority
@@ -52,12 +52,12 @@ Config file is discovered in order: `--config` flag → `TTC_CONFIG` env var →
 | `market` | `m` | Tickers, funding rates, OI, volume snapshot, TTC scanner, **price alerts** (`market alert`) |
 | `risk` | — | Stop-loss (`sl`), take-profit (`tp`), trailing stop (`trail`), polling trail watcher (`trail-watch`) |
 | `config` | — | Init, show, path, set-default, add/rm exchange |
-| `login` | `auth` | TTC Box login |
-| `register` | — | TTC Box registration + local wallet generation |
+| `login` | `auth` | Tetrac login |
+| `register` | — | Tetrac registration + local wallet generation |
 | `portfolio` | `port`, `pf` | Health report: balance + positions → HEALTHY/WATCH/DANGER status with risk warnings |
 | `twap` | — | Time-weighted average price position builder (polling loop, market orders, crash recovery) |
 | `twap-slice` | — | **Atomic single slice** — one market order for a fixed USD amount. Designed for `/loop` agent-controlled runs |
-| `status` | — | Ping TTC Box API + verify session token + check exchange credentials → READY / NOT READY. Exits 1 if not ready. |
+| `status` | — | Ping Tetrac API + verify session token + check exchange credentials → READY / NOT READY. Exits 1 if not ready. |
 | `brief` | `morning`, `mb` | Morning market brief: session check + watchlist prices + signals + portfolio + open orders |
 | `market-maker` | `mm` | Limit-order spread capture loop: enter at best bid/ask, exit at entry ± spread. See `[market-maker]` config for commission. |
 | `info` | `version` | Show binary version and build info |
@@ -122,7 +122,7 @@ See `.env.sample` for all supported variables. Key ones:
 - `TTC_PASSKEY` — 64-char hex, encrypts wallet keys locally
 - Per-exchange slots: `ORDERLY_API_KEY`, `BYBIT_API_KEY`, etc.
 
-**Never put API keys in `config.toml`.** Exchange credentials (`{EXCHANGE}_API_KEY`, `{EXCHANGE}_API_SECRET`, `{EXCHANGE}_API_PASSPHRASE`) and TTC Box session tokens (`TTC_AUTH_TOKEN`, `TTC_PASSKEY`) belong in `.env` only. `config.toml` is for non-secret preferences (default exchange, output format, watchlist, portfolio thresholds, market-maker tunables) — never secrets.
+**Never put API keys in `config.toml`.** Exchange credentials (`{EXCHANGE}_API_KEY`, `{EXCHANGE}_API_SECRET`, `{EXCHANGE}_API_PASSPHRASE`) and Tetrac session tokens (`TTC_AUTH_TOKEN`, `TTC_PASSKEY`) belong in `.env` only. `config.toml` is for non-secret preferences (default exchange, output format, watchlist, portfolio thresholds, market-maker tunables) — never secrets.
 
 Never commit `.env` or any file with real credentials.
 
@@ -179,7 +179,7 @@ cargo test --lib <module>::<test_name>
 |--------|---------|
 | `src/main.rs` | Entry point — config loading, logging, CLI dispatch |
 | `src/cli.rs` | All clap command/argument definitions (derives) |
-| `src/api/client.rs` | HTTP client, retry logic, all TTC Box API methods |
+| `src/api/client.rs` | HTTP client, retry logic, all Tetrac API methods |
 | `src/models.rs` | API request/response DTOs, enums (`OrderSide`, `PositionSide`, etc.) |
 | `src/config.rs` | `AppConfig` struct, config file loading, priority resolution |
 | `src/crypto.rs` | Wallet generation (Ed25519/secp256k1), PBKDF2, AES-256-CBC encryption |

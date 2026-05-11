@@ -1,4 +1,4 @@
-//! HTTP client retry tests using mockito to stub the TTC Box API.
+//! HTTP client retry tests using mockito to stub the Tetrac API.
 //!
 //! Locks in the contract that:
 //! - 429 (RateLimited) is retried up to max_retries+1 attempts.
@@ -330,7 +330,7 @@ async fn transport_error_is_retried_via_separate_arm() {
 }
 
 // ============================================================================
-// Sanity: request shape sent to TTC Box looks correct (auth headers, JSON body)
+// Sanity: request shape sent to Tetrac looks correct (auth headers, JSON body)
 // ============================================================================
 
 #[tokio::test]

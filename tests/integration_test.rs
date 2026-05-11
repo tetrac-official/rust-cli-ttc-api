@@ -15,7 +15,7 @@ fn test_help_output() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "Execute trading operations on TTC Box",
+            "Execute trading operations on Tetrac",
         ));
 }
 

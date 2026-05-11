@@ -1,6 +1,6 @@
 //! Cryptographic utilities for wallet generation and encryption.
 //!
-//! Implements algorithms that match the TTC Box web client:
+//! Implements algorithms that match the Tetrac web client:
 //! - PBKDF2-SHA1 apiKey derivation (deriveApiKeyFromPasskey)
 //! - SHA-256 passkey hashing (hashPasskeyForServer)
 //! - OpenSSL EVP AES-256-CBC encryption (CryptoES.AES.encrypt)
@@ -15,7 +15,7 @@ use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::SecretKey as EcSecretKey;
 use md5::Md5;
 use pbkdf2::pbkdf2_hmac;
-use rand::{rngs::OsRng, RngCore};
+use rand_core::{OsRng, RngCore};
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use sha3::Keccak256;
